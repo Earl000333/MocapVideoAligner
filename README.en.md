@@ -1,0 +1,419 @@
+# MocapVideoAligner English Documentation
+
+> A lightweight PyQt desktop tool for aligning multi-camera visual recordings with BVH motion-capture data.
+
+[中文文档](README.zh-CN.md) | [Back to language selector](README.md)
+
+---
+
+## 1. Overview
+
+`MocapVideoAligner` is a desktop GUI tool for aligning visual recordings from a multi-camera system with BVH motion-capture data from systems such as VICON.
+
+The tool is designed for offline lab workflows where visual data and motion-capture data are collected by separate systems and need to be synchronized after recording. It does not require a GPU, does not run a web server, and can still operate when only part of the expected data is available.
+
+The current version focuses on the following practical issues:
+
+- Visual recordings may be image sequences or MP4 files.
+- The intended visual frame rate may be 40fps, while the actual recorded FPS can be around 37.4-37.8fps.
+- Mocap data is commonly recorded at 120fps.
+- A single trial may contain one, two, three, four, or more BVH files.
+- Raw BVH coordinates may make the skeleton appear lying down in a direct 3D preview.
+- The tool should run on lower-end CPU-only computers.
+
+By default, the application opens the GUI only. Users select the camera root folder and mocap root folder from the toolbar, then load the trial.
+
+---
+
+## 2. Key Features
+
+- Single-window PyQt GUI.
+- Camera root and mocap root folder selection from the toolbar.
+- Automatic trial enumeration with previous / next trial navigation.
+- Image sequence input from `1/2/3/4` or `cam1/cam2/cam3/cam4`.
+- MP4 input with `1_*.mp4`, `2_*.mp4`, `3_*.mp4`, `4_*.mp4`.
+- `auto` mode prefers image sequences and falls back to MP4.
+- Image sequence formats: `png`, `jpg`, `jpeg`.
+- Timestamp-aware image sequence timing.
+- Actual MP4 FPS from OpenCV.
+- Multi-camera energy fusion on a unified reference timeline.
+- Native BVH frame rate preserved.
+- Automatic BVH selection based on joint motion score.
+- Default `zup` display transform to correct lying-down skeleton previews.
+- Draggable and scalable skeleton overlay on top of camera previews.
+- Automatic alignment and manual frame-level adjustment.
+- Play / pause preview.
+- Start / end mark recording.
+- CSV clip-log export.
+- Aligned BVH, metadata JSON, curve CSV, and figure PNG export.
+- Lite mode for lower-end computers.
+
+---
+
+## 3. Requirements
+
+Recommended environment:
+
+- Windows 10 or Windows 11.
+- Python 3.11 or later.
+- CPU-only is supported.
+- 8GB RAM or more recommended.
+
+Core dependencies:
+
+- `numpy`
+- `matplotlib`
+- `opencv-python`
+- `PyQt5`
+
+---
+
+## 4. Installation
+
+### Conda
+
+```bash
+conda env create -f environment.yml
+conda activate mocap-align
+python main.py
+```
+
+### pip
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+If PyQt5 installation fails, install the core packages manually:
+
+```bash
+pip install PyQt5 opencv-python matplotlib numpy
+```
+
+---
+
+## 5. Launch Options
+
+Open the GUI without auto-loading data:
+
+```bash
+python main.py
+```
+
+Lite mode:
+
+```bash
+python main.py --lite
+```
+
+Force MP4 input:
+
+```bash
+python main.py --source mp4
+```
+
+Force image sequence input:
+
+```bash
+python main.py --source frames
+```
+
+Auto-load the first available trial from the configured roots:
+
+```bash
+python main.py --auto-load
+```
+
+Skeleton display axis preset:
+
+```bash
+python main.py --axis-preset zup
+python main.py --axis-preset raw
+```
+
+---
+
+## 6. Recommended Data Layout
+
+### Image Sequence Camera Data
+
+```text
+camera_root/
+  rec20260422_163247_subject_S401_1/
+    1/
+      1_162852.002.jpg
+      1_162852.035.jpg
+    2/
+    3/
+    4/
+```
+
+The following layout is also supported:
+
+```text
+camera_root/
+  rec20260422_163247_subject_S401_1/
+    cam1/
+    cam2/
+    cam3/
+    cam4/
+```
+
+### MP4 Camera Data
+
+```text
+camera_root/
+  rec20260422_163247_subject_S401_1/
+    1_20260422_163247.mp4
+    2_20260422_163247.mp4
+    3_20260422_163247.mp4
+    4_20260422_163247.mp4
+```
+
+### BVH Mocap Data
+
+Direct trial folder:
+
+```text
+mocap_root/
+  S4011/
+    S4011_Skeleton0.bvh
+    S4011_Skeleton1.bvh
+    S4011_Skeleton2.bvh
+    S4011_Skeleton3.bvh
+```
+
+Subject-grouped folder:
+
+```text
+mocap_root/
+  S4/
+    S4011/
+      S4011_Skeleton0.bvh
+      S4011_Skeleton1.bvh
+      S4011_Skeleton2.bvh
+      S4011_Skeleton3.bvh
+```
+
+Recommended naming:
+
+- Mocap folder name: `S<subject><two-digit-action><repetition>`, for example `S4011`.
+- Camera session folder name: preferably ends with `_S401_1`, so the tool can match the camera session to the mocap trial.
+
+---
+
+## 7. Standard Workflow
+
+1. Run `python main.py`.
+2. Click `Camera Folder` in the toolbar and select the camera root folder.
+3. Click `Mocap Folder` and select the VICON / BVH root folder.
+4. Use previous / next trial navigation to select a trial.
+5. Click reload.
+6. Check the camera previews, skeleton preview, and alignment curves.
+7. Click auto-align to estimate the initial offset.
+8. Fine-tune with buttons, sliders, or keyboard shortcuts.
+9. Mark start and end when clip boundaries are needed.
+10. Export the clip log or the current alignment result.
+
+---
+
+## 8. Timing Model and Actual FPS
+
+The visual timeline no longer assumes a fixed 40fps:
+
+- MP4 mode uses the FPS reported by OpenCV.
+- Image-sequence mode parses timestamps from filenames such as `1_162852.002.jpg`.
+- If timestamps are unavailable, the fallback is `FRAME_SEQUENCE_FPS = 40.0` in `config.py`.
+- Multi-camera fusion uses the median FPS of all loaded cameras as the reference visual FPS.
+- Each camera maps preview time to its own frame index.
+- Energy curves are resampled to the shared reference timeline.
+
+This reduces long-term drift when the real visual FPS differs from the intended 40fps.
+
+---
+
+## 9. BVH Handling
+
+The tool supports any number of BVH files:
+
+- `Skeleton0` is treated as `position`.
+- `Skeleton1` is treated as `order`.
+- `Skeleton2`, `Skeleton3`, and additional files are loaded as extra BVH sources.
+- The tool computes a motion score for each BVH file.
+- The skeleton preview and automatic alignment use the BVH with the strongest joint motion.
+- Export includes every loaded BVH file.
+
+The display-axis transform affects only GUI rendering. Exported BVH motion data remains in the original coordinate system.
+
+---
+
+## 10. GUI Layout
+
+The main window contains:
+
+- Toolbar: trial navigation, folder selection, reload, auto-align, export.
+- Camera preview area: four synchronized camera views.
+- Skeleton preview area: current BVH skeleton and optional skeleton overlay.
+- Alignment curve area: combined camera energy, per-camera energy, and mocap energy.
+- Status panel: current trial, runtime settings, actual FPS, offset, frame position, and operation log.
+
+Skeleton overlay:
+
+- Click the overlay button to enable it.
+- Drag with the left mouse button.
+- Use the mouse wheel to scale.
+- Double-click to reset the overlay position.
+
+---
+
+## 11. Exported Files
+
+Default output directory:
+
+```text
+sync/output/<session_id>/
+```
+
+Exported files:
+
+- `<session_id>_<role>_aligned.bvh`: BVH clipped according to the current offset.
+- `<session_id>_alignment.json`: alignment metadata.
+- `<session_id>_aligned_curves.csv`: aligned curve data.
+- `<session_id>_calibration.png`: current alignment curve figure.
+- `sync/output/results_csv/*.csv`: start / end clip records.
+
+`alignment.json` contains:
+
+- `delta_t`
+- `reference_visual_fps`
+- per-camera actual FPS
+- per-camera frame count
+- BVH start frame
+- display and alignment BVH roles
+- axis preset
+
+---
+
+## 12. Lite Mode and Performance
+
+The tool can run without a dedicated GPU. The main performance costs are:
+
+- image or video decoding
+- Matplotlib curve rendering
+- 3D skeleton rendering
+
+For lower-end machines:
+
+```bash
+python main.py --lite
+```
+
+Lite mode:
+
+- reduces preview image scale
+- avoids heavy redraws while dragging sliders
+- reuses precomputed cache when possible
+
+Cache directory:
+
+```text
+sync/cache/
+```
+
+If data or timing logic changes, delete the corresponding session cache directory to force recomputation.
+
+---
+
+## 13. Keyboard Shortcuts
+
+| Key | Action |
+|---|---|
+| `Space` | Play / pause |
+| `Left` / `Right` | Alignment offset -1 / +1 frame |
+| `Shift + Left/Right` | Alignment offset -10 / +10 frames |
+| `Ctrl + Left/Right` | Alignment offset -5 / +5 frames |
+| `Up` / `Down` | Move visual timeline |
+| `Home` | Auto-align |
+| `1` | Mark start |
+| `2` | Mark end |
+| `Enter` | Export current result |
+| `PageUp` / `PageDown` | Previous / next trial |
+
+---
+
+## 14. Troubleshooting
+
+### `main.py` does not auto-load data
+
+This is intentional. The GUI opens first to avoid failing immediately when default paths are invalid.
+
+Use this if auto-load is required:
+
+```bash
+python main.py --auto-load
+```
+
+### Images cannot be read
+
+Check:
+
+- whether the path exists
+- whether the image files are corrupted
+- whether camera folders are named `1/2/3/4` or `cam1/cam2/cam3/cam4`
+- whether file extensions are `png`, `jpg`, or `jpeg`
+
+### The skeleton appears lying down
+
+Use the default `zup` preset first. If your BVH data already uses the correct display coordinate system, switch to `raw`.
+
+### There are multiple BVH files
+
+No manual selection is required. The tool loads all BVH files and selects the best one for preview and alignment based on motion score.
+
+### Alignment still drifts slightly
+
+Check:
+
+- whether actual FPS is being used
+- whether image sequence filenames contain reliable timestamps
+- whether MP4 files are variable-frame-rate videos. If they are, image sequences with timestamps are preferred.
+
+---
+
+## 15. Development and Tests
+
+Run tests:
+
+```bash
+python -m unittest discover -s tests
+```
+
+Compile check:
+
+```bash
+python -m py_compile main.py visualize_energy.py models.py ui/main_window.py ui/widgets.py utils/session.py utils/energy.py utils/alignment.py utils/exporter.py
+```
+
+Main files:
+
+```text
+main.py                 compatibility entrypoint
+visualize_energy.py     GUI startup entrypoint
+config.py               default paths, frame rate, cache version
+models.py               data models
+ui/                     PyQt GUI
+utils/session.py        data discovery, loading, and cache
+utils/energy.py         energy calculation, actual FPS, resampling
+utils/alignment.py      alignment and frame mapping
+utils/exporter.py       export logic
+tests/                  unit tests and lightweight fixtures
+```
+
+---
+
+## 16. License
+
+This project is released under the MIT License.
