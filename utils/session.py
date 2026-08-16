@@ -39,14 +39,26 @@ def find_cam_session(session_id: str, cam_root: Path) -> Path:
 
     matches = [path for path in cam_root.iterdir() if path.is_dir() and path.name.endswith(f"_{session_id}")]
     if not matches:
-        raise FileNotFoundError(f"没有在 {cam_root} 下找到匹配 *_{session_id} 的相机会话目录。")
+        for action_folder in cam_root.iterdir():
+            if not action_folder.is_dir():
+                continue
+            matches.extend(
+                path
+                for path in action_folder.iterdir()
+                if path.is_dir() and path.name.endswith(f"_{session_id}")
+            )
+    if not matches:
+        raise FileNotFoundError(
+            f"没有在 {cam_root} 或其动作子目录下找到匹配 *_{session_id} 的相机会话目录。"
+        )
+    matches.sort(key=lambda path: str(path).lower())
     if len(matches) > 1:
         print(f"  [warn] 找到多个相机会话，默认使用：{matches[0].name}")
     return matches[0]
 
 
 def _parse_trial_folder_name(folder_name: str) -> TrialInfo | None:
-    match = re.match(r"^S(\d)(\d{2})(\d)$", folder_name)
+    match = re.match(r"^S(\d+)(\d{2})(\d)$", folder_name)
     if not match:
         return None
     return TrialInfo(

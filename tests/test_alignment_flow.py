@@ -81,7 +81,7 @@ from models import BVHMotion, BVHJoint, BVHSourceData, ImageSequenceSource, Runt
 from utils import session as session_module
 from utils.alignment import aligned_start_frames, preview_time_to_camera_frame
 from utils.bvh_pose import transform_display_positions
-from utils.energy import infer_frame_times_from_paths
+from utils.energy import image_sequence_energy, infer_frame_times_from_paths
 from utils.session import (
     choose_bvh_paths,
     choose_bvh_roles,
@@ -197,6 +197,29 @@ class AlignmentFlowTests(unittest.TestCase):
         np.testing.assert_allclose(frame_times, np.array([0.0, 0.033, 0.999]), atol=1e-6)
         self.assertAlmostEqual(fps, 2.002002, places=5)
 
+    def test_image_sequence_energy_skips_unreadable_frames(self) -> None:
+        frame_dir = FIXTURE_ROOT / "image_sequence_with_bad_frame"
+        frame_dir.mkdir(parents=True, exist_ok=True)
+        frame_paths = (
+            frame_dir / "bad_001.jpg",
+            frame_dir / "good_002.jpg",
+            frame_dir / "good_003.jpg",
+        )
+        for frame_path in frame_paths:
+            frame_path.touch()
+
+        with patch("utils.energy._read_image_bgr") as mocked_read:
+            mocked_read.side_effect = [
+                None,
+                np.full((12, 12, 3), 2, dtype=np.uint8),
+                np.full((12, 12, 3), 3, dtype=np.uint8),
+            ]
+            energy, fps, frame_count = image_sequence_energy(frame_paths, 40.0)
+
+        self.assertEqual(frame_count, 3)
+        self.assertEqual(fps, 40.0)
+        self.assertEqual(len(energy), 1)
+
     def test_preview_time_uses_frame_timestamps_when_available(self) -> None:
         camera = ImageSequenceSource(
             label="cam1",
@@ -224,6 +247,23 @@ class AlignmentFlowTests(unittest.TestCase):
 
         self.assertEqual([trial.display_name for trial in trials], ["对象4 动作01 第1次", "对象4 动作01 第2次"])
         self.assertEqual(subject_path.name, "S4011")
+
+    def test_mocap_trial_discovery_supports_multi_digit_subjects(self) -> None:
+        root = FIXTURE_ROOT / "mocap_multi_digit_subject"
+        trial_dir = root / "S13011"
+        trial_dir.mkdir(parents=True, exist_ok=True)
+        (trial_dir / "S13011_Skeleton0.bvh").touch()
+
+        trials = enumerate_trials(root)
+        subject_path = find_mocap_subject("S1301_1", root)
+
+        self.assertEqual(len(trials), 1)
+        self.assertEqual(trials[0].subject, 13)
+        self.assertEqual(trials[0].action, 1)
+        self.assertEqual(trials[0].rep, 1)
+        self.assertEqual(trials[0].mocap_folder_name, "S13011")
+        self.assertEqual(trials[0].cam_session_suffix, "S1301_1")
+        self.assertEqual(subject_path.name, "S13011")
 
     def test_load_session_data_prefers_frame_sequences_and_prepares_cache(self) -> None:
         cam_root = FIXTURE_ROOT / "cam_root"

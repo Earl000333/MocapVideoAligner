@@ -32,6 +32,7 @@ from config import (
     LITE_PREVIEW_SCALE,
 )
 from models import AlignmentState, BVHSourceData, SessionData, TrialInfo
+from ui.pressure_alignment_page import PressureAlignmentPage
 from ui.style import app_stylesheet, create_palette
 from ui.widgets import DraggableOverlayLabel, InfoRow, PreviewTile, TechPanel, build_alignment_logo_pixmap, repolish, rgb_array_to_qpixmap
 from utils.alignment import estimate_initial_offset, preview_time_to_bvh_frame, preview_time_to_camera_frame, quantize_time
@@ -358,6 +359,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.body_splitter: QtWidgets.QSplitter | None = None
         self.workspace_splitter: QtWidgets.QSplitter | None = None
         self.preview_splitter: QtWidgets.QSplitter | None = None
+        self.main_tabs: QtWidgets.QTabWidget | None = None
+        self.pressure_alignment_page: PressureAlignmentPage | None = None
         self.camera_tiles: dict[str, PreviewTile] = {}
         self.camera_checks: dict[str, QtWidgets.QCheckBox] = {}
         self.combined_check: QtWidgets.QCheckBox | None = None
@@ -427,9 +430,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.trial_info_label.setProperty("headerValue", True)
         self.next_button = QtWidgets.QPushButton("下一试次")
         self.next_button.setMinimumWidth(110)
+        self.pick_trial_button = QtWidgets.QPushButton("选择批次")
+        self.pick_trial_button.setMinimumWidth(110)
         layout.addWidget(self.prev_button, 0, QtCore.Qt.AlignVCenter)
         layout.addWidget(self.trial_info_label, 0, QtCore.Qt.AlignVCenter)
         layout.addWidget(self.next_button, 0, QtCore.Qt.AlignVCenter)
+        layout.addWidget(self.pick_trial_button, 0, QtCore.Qt.AlignVCenter)
 
         self.state_badge = QtWidgets.QLabel("未加载")
         self.state_badge.setAlignment(QtCore.Qt.AlignCenter)
@@ -454,6 +460,13 @@ class MainWindow(QtWidgets.QMainWindow):
         return panel
 
     def _build_body(self) -> QtWidgets.QWidget:
+        self.main_tabs = QtWidgets.QTabWidget()
+
+        visual_page = QtWidgets.QWidget()
+        visual_layout = QtWidgets.QVBoxLayout(visual_page)
+        visual_layout.setContentsMargins(0, 0, 0, 0)
+        visual_layout.setSpacing(0)
+
         self.body_splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.body_splitter.setChildrenCollapsible(False)
         self.body_splitter.setHandleWidth(10)
@@ -465,7 +478,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.body_splitter.setStretchFactor(0, 7)
         self.body_splitter.setStretchFactor(1, 2)
         self.body_splitter.setSizes([1640, 360])
-        return self.body_splitter
+        visual_layout.addWidget(self.body_splitter)
+
+        self.pressure_alignment_page = PressureAlignmentPage(
+            session_getter=lambda: self.session,
+            log_callback=self.log,
+        )
+        self.main_tabs.addTab(visual_page, "视觉-动捕对齐")
+        self.main_tabs.addTab(self.pressure_alignment_page, "动捕-触觉对齐")
+        return self.main_tabs
 
     def _build_workspace(self) -> QtWidgets.QWidget:
         self.workspace_splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
@@ -857,6 +878,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.prev_button.clicked.connect(self.navigate_prev)
         self.next_button.clicked.connect(self.navigate_next)
+        self.pick_trial_button.clicked.connect(self.choose_trial)
 
         self.visual_slider.valueChanged.connect(self._on_visual_slider_changed)
         self.visual_slider.sliderPressed.connect(lambda: self._set_drag_state("visual", True))
@@ -1019,6 +1041,7 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self.prev_button.setEnabled(False)
             self.next_button.setEnabled(False)
+            self.pick_trial_button.setEnabled(False)
             self._update_root_button_state()
             return
 
@@ -1031,6 +1054,7 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             self.prev_button.setEnabled(False)
             self.next_button.setEnabled(False)
+            self.pick_trial_button.setEnabled(False)
             self._update_root_button_state()
             return
 
@@ -1047,6 +1071,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.prev_button.setEnabled(self._trial_index > 0)
         self.next_button.setEnabled(self._trial_index < total - 1)
+        self.pick_trial_button.setEnabled(total > 0)
         self._update_root_button_state()
 
     def navigate_prev(self) -> None:
@@ -1060,6 +1085,37 @@ class MainWindow(QtWidgets.QMainWindow):
             self._trial_index += 1
             self._update_trial_display()
             self.load_current_selection()
+    def choose_trial(self) -> None:
+        if self._use_explicit_paths:
+            QtWidgets.QMessageBox.information(self, "选择批次", "当前为手动路径模式，无法从批次列表选择。")
+            return
+        if not self._trial_list:
+            QtWidgets.QMessageBox.warning(self, "选择批次", "当前没有可选择的批次，请先选择相机/动捕目录并重新加载。")
+            return
+
+        labels = []
+        for index, trial in enumerate(self._trial_list):
+            labels.append(f"[{index + 1}/{len(self._trial_list)}] {trial.display_name}  ({trial.mocap_folder_name})")
+
+        selected, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            "选择批次",
+            "请选择要加载的批次：",
+            labels,
+            self._trial_index,
+            False,
+        )
+        if not ok or not selected:
+            return
+        try:
+            selected_index = labels.index(selected)
+        except ValueError:
+            return
+        if selected_index == self._trial_index:
+            return
+        self._trial_index = selected_index
+        self._update_trial_display()
+        self.load_current_selection()
 
     def log(self, message: str) -> None:
         if not message:
@@ -1131,6 +1187,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _release_session(self) -> None:
         close_session_data(self.session)
         self.session = None
+        if self.pressure_alignment_page is not None:
+            self.pressure_alignment_page.set_session_context(None)
         self._update_skeleton_overlay_state()
 
     def _clear_marks(self, update_view: bool = True) -> None:
@@ -1165,6 +1223,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._release_session()
         self.session = session
+        if self.pressure_alignment_page is not None:
+            self.pressure_alignment_page.set_session_context(session, force=True)
         self._update_skeleton_overlay_state()
         self._clear_marks(update_view=False)
         self._reset_camera_selection()
@@ -1203,6 +1263,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._release_session()
         self.session = session
+        if self.pressure_alignment_page is not None:
+            self.pressure_alignment_page.set_session_context(session, force=True)
         self._update_skeleton_overlay_state()
         self._clear_marks(update_view=False)
         self._reset_camera_selection()
@@ -1605,6 +1667,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         lines = [f"{key}: {path}" for key, path in outputs.items()]
         self.log("当前对齐结果已导出。")
+        if self.pressure_alignment_page is not None:
+            self.pressure_alignment_page.set_session_context(self.session, force=True)
         QtWidgets.QMessageBox.information(self, "导出完成", "\n".join(lines))
 
     def _refresh_camera_tiles(self) -> None:
@@ -1673,6 +1737,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._refresh_camera_tiles()
             self._sync_timeline_sliders()
             self._update_status_texts()
+            if self.pressure_alignment_page is not None:
+                self.pressure_alignment_page.set_preview_time(self.state.preview_time)
             return
 
         combined_energy = self._combined_energy_for_display()
@@ -1692,6 +1758,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._refresh_skeleton_overlay()
         self._sync_timeline_sliders()
         self._update_status_texts()
+        if self.pressure_alignment_page is not None:
+            self.pressure_alignment_page.set_preview_time(self.state.preview_time)
 
     def _update_status_texts(self) -> None:
         if self.session is None:
@@ -1773,6 +1841,24 @@ class MainWindow(QtWidgets.QMainWindow):
             step = 10
         elif modifiers & QtCore.Qt.ControlModifier:
             step = 5
+
+        if (
+            self.pressure_alignment_page is not None
+            and self.main_tabs is not None
+            and self.main_tabs.currentWidget() is self.pressure_alignment_page
+        ):
+            if key == QtCore.Qt.Key_Space:
+                if self.pressure_alignment_page._play_timer.isActive():
+                    self.pressure_alignment_page.stop_playback()
+                else:
+                    self.pressure_alignment_page.start_playback()
+                return
+            if key == QtCore.Qt.Key_Left:
+                self.pressure_alignment_page.shift_preview_frames(-step)
+                return
+            if key == QtCore.Qt.Key_Right:
+                self.pressure_alignment_page.shift_preview_frames(step)
+                return
 
         if key == QtCore.Qt.Key_Space:
             if self.play_timer.isActive():

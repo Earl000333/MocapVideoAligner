@@ -9,6 +9,10 @@ DEFAULT_CAM_ROOT = Path("E:/Data/1_Data/20260422/S2")
 DEFAULT_MOCAP_ROOT = Path("E:/Data/1_Data/20260422/VICON")
 DEFAULT_OUTPUT_ROOT = Path("sync/output")
 DEFAULT_CACHE_ROOT = Path("sync/cache")
+DEFAULT_VISUAL_ALIGN_REVIEW_ROOT = Path("E:/S13/AlignReviews_csv")
+DEFAULT_RECONSTRUCTED_TACTILE_ROOT = Path(
+    "PressureWasher/reconstructed_tactile_dataset/reconstruction_20260816_222245"
+)
 
 DEFAULT_SOURCE_MODE = "auto"
 DEFAULT_AXIS_PRESET = "zup"

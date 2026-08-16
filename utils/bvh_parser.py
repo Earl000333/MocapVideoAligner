@@ -123,3 +123,37 @@ def load_bvh_motion(bvh_path: Path) -> BVHMotion:
         edges=edges,
         channel_info=channel_info,
     )
+
+
+def load_bvh_motion_preserve_frames(bvh_path: Path) -> BVHMotion:
+    text = _read_bvh_text(bvh_path)
+
+    ft_match = re.search(r"Frame Time:\s*([\d.eE+\-]+)", text)
+    if not ft_match:
+        raise ValueError(f"BVH 文件里没有找到 Frame Time：{bvh_path}")
+    frame_time_str = ft_match.group(1)
+    raw_fps = 1.0 / float(frame_time_str)
+
+    motion_start = text.find("Frame Time:")
+    if motion_start < 0:
+        raise ValueError(f"BVH 文件缺少 Frame Time 行：{bvh_path}")
+
+    lines = text[motion_start:].strip().split("\n")[1:]
+    lines = [line.strip() for line in lines if line.strip()]
+    raw_frames = np.array([[float(value) for value in line.split()] for line in lines], dtype=np.float64)
+    joints, edges, channel_info = parse_bvh_hierarchy(text)
+
+    print(
+        f"  [BVH aligned] {bvh_path.name}  fps={raw_fps:.2f}  frames={len(raw_frames)}  "
+        f"ch={raw_frames.shape[1]}  duration={len(raw_frames) / raw_fps:.2f}s"
+    )
+    return BVHMotion(
+        path=bvh_path,
+        text=text,
+        frame_time_str=frame_time_str,
+        raw_fps=raw_fps,
+        raw_frames=raw_frames,
+        joints=joints,
+        edges=edges,
+        channel_info=channel_info,
+    )
