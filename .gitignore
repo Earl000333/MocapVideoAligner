@@ -15,16 +15,12 @@ htmlcov/
 .test_tmp/
 
 # Runtime outputs and cache
-sync/cache/
-sync/output/
-sync/_tmp_*/
-sync/_tmp_*.py
-backup/
 output/
+cache/
+backup/
 outputs/
 results/
 result/
-cache/
 logs/
 tmp/
 temp/
@@ -58,3 +54,7 @@ Thumbs.db
 
 # External/local add-on trees (not part of this repo)
 add/
+
+# Keep folder placeholders
+!**/.gitkeep
+!data/missing_pressure_objects.csv

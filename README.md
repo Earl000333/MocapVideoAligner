@@ -11,7 +11,7 @@
 
 - [中文文档](README.zh-CN.md)
 - [English Documentation](README.en.md)
-- [触觉对齐机制说明](触觉对齐机制说明.md)
+- [触觉对齐机制说明](docs/tactile_alignment.md)
 
 ## What It Does / 功能概览
 

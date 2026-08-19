@@ -2,7 +2,7 @@
 
 > A lightweight PyQt desktop tool for aligning multi-camera visual recordings and plantar-pressure data with BVH motion-capture data.
 
-[中文文档](README.zh-CN.md) | [Back to language selector](README.md) | [Tactile Alignment Notes (Chinese)](触觉对齐机制说明.md)
+[中文文档](README.zh-CN.md) | [Back to language selector](README.md) | [Tactile Alignment Notes (Chinese)](docs/tactile_alignment.md)
 
 ---
 
@@ -68,7 +68,7 @@ By default, the application opens the GUI only. Users select the camera root fol
 - Quality-table `C/D` trial skip in navigation and disabled items in the trial picker.
 - Export of `*_pressure_alignment.json`, pressure curve CSV, and Fake frame CSV.
 
-Detailed notes (Chinese): [触觉对齐机制说明.md](触觉对齐机制说明.md)
+Detailed notes (Chinese): [docs/tactile_alignment.md](docs/tactile_alignment.md)
 
 ---
 
@@ -359,7 +359,7 @@ Trial navigation extras:
 Default output directory:
 
 ```text
-sync/output/<session_id>/
+output/video_mocap/<session_id>/
 ```
 
 ### 11.1 Visual-Mocap Exports
@@ -368,7 +368,7 @@ sync/output/<session_id>/
 - `<session_id>_alignment.json`: alignment metadata.
 - `<session_id>_aligned_curves.csv`: aligned curve data.
 - `<session_id>_calibration.png`: current alignment curve figure.
-- `sync/output/results_csv/*.csv`: start / end clip records.
+- `output/video_mocap/results_csv/*.csv`: start / end clip records.
 
 `alignment.json` contains:
 
@@ -385,7 +385,7 @@ sync/output/<session_id>/
 - `<session_id>_pressure_alignment.json`
 - `<session_id>_pressure_aligned_curves.csv`
 - `<session_id>_pressure_calibration.png`
-- `sync/output/fake_tactile_csv/*_fake_frames.csv`
+- `output/video_mocap/fake_tactile_csv/*_fake_frames.csv`
 
 Fake frame CSV header:
 
@@ -419,7 +419,7 @@ Lite mode:
 Cache directory:
 
 ```text
-sync/cache/
+cache/
 ```
 
 If data or timing logic changes, delete the corresponding session cache directory to force recomputation.
@@ -532,7 +532,7 @@ utils/pressure_alignment.py          pressure loading, legacy mechanism, export,
 utils/pressure_dynamics_alignment.py new mechanism (touchdown events)
 utils/exporter.py                    visual-page export logic
 tests/                               unit tests and lightweight fixtures
-触觉对齐机制说明.md                   tactile-page design notes
+docs/tactile_alignment.md                   tactile-page design notes
 ```
 
 ---

@@ -2,7 +2,7 @@
 
 > 一个用于对齐四相机视觉数据、足底触觉压力数据与 BVH 动捕数据的轻量级 PyQt 桌面工具。
 
-[English Documentation](README.en.md) | [返回语言选择](README.md) | [触觉对齐机制说明](触觉对齐机制说明.md)
+[English Documentation](README.en.md) | [返回语言选择](README.md) | [触觉对齐机制说明](docs/tactile_alignment.md)
 
 ---
 
@@ -69,7 +69,7 @@
 - 支持质量表 `C/D` 试次跳过与选择列表置灰。
 - 支持导出 `*_pressure_alignment.json`、曲线 CSV 与 Fake 帧表。
 
-更细的机制说明见：[触觉对齐机制说明.md](触觉对齐机制说明.md)
+更细的机制说明见：[docs/tactile_alignment.md](docs/tactile_alignment.md)
 
 ---
 
@@ -359,7 +359,7 @@ missing_pressure_objects.csv
 默认输出目录：
 
 ```text
-sync/output/<session_id>/
+output/video_mocap/<session_id>/
 ```
 
 ### 11.1 视觉-动捕导出
@@ -368,7 +368,7 @@ sync/output/<session_id>/
 - `<session_id>_alignment.json`：对齐元数据。
 - `<session_id>_aligned_curves.csv`：对齐后的曲线数据。
 - `<session_id>_calibration.png`：当前对齐曲线截图。
-- `sync/output/results_csv/*.csv`：起点 / 终点裁剪记录。
+- `output/video_mocap/results_csv/*.csv`：起点 / 终点裁剪记录。
 
 `alignment.json` 会记录：
 
@@ -385,7 +385,7 @@ sync/output/<session_id>/
 - `<session_id>_pressure_alignment.json`
 - `<session_id>_pressure_aligned_curves.csv`
 - `<session_id>_pressure_calibration.png`
-- `sync/output/fake_tactile_csv/*_fake_frames.csv`
+- `output/video_mocap/fake_tactile_csv/*_fake_frames.csv`
 
 Fake 帧表头：
 
@@ -419,7 +419,7 @@ python main.py --lite
 缓存目录：
 
 ```text
-sync/cache/
+cache/
 ```
 
 如果数据或代码逻辑更新后需要重新计算，可以删除对应 session 的缓存目录。
@@ -533,7 +533,7 @@ utils/pressure_alignment.py          压力加载、旧机制、导出、质量�
 utils/pressure_dynamics_alignment.py 新机制（触地事件）
 utils/exporter.py                    视觉页导出逻辑
 tests/                               单元测试和轻量 fixture
-触觉对齐机制说明.md                   触觉页专项说明
+docs/tactile_alignment.md                   触觉页专项说明
 ```
 
 ---

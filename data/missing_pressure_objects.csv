@@ -1,0 +1,331 @@
+quality_class,date,subject,session_name,dataset_id,session_status,missing_side_objects,zero_frame_second_count,max_gap_s,left_total_frames,right_total_frames,reason
+A,20260804,S5,rec20260804_192218_方晟宇_S501_1,S5011,session_present,,0,0.282,411,427,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260804,S5,rec20260804_192315_方晟宇_S501_2,S5012,session_present,,0,0.515,421,460,max gap = 0.515000s
+A,20260804,S5,rec20260804_192413_方晟宇_S501_3,S5013,session_present,,0,0.094,534,535,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_192721_方晟宇_S502_1,S5021,session_present,,0,0.125,537,536,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260804,S5,rec20260804_192822_方晟宇_S502_2,S5022,session_present,,0,0.407,501,519,max gap = 0.407000s
+A,20260804,S5,rec20260804_193008_方晟宇_S502_3,S5023,session_present,,0,0.094,551,554,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193122_方晟宇_S503_1,S5031,session_present,,0,0.094,381,379,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193303_方晟宇_S503_2,S5032,session_present,,0,0.094,318,323,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193424_方晟宇_S503_3,S5033,session_present,,0,0.093,352,356,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193510_方晟宇_S504_1,S5041,session_present,,0,0.094,241,238,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193540_方晟宇_S504_2,S5042,session_present,,0,0.188,233,238,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193633_方晟宇_S504_3,S5043,session_present,,0,0.094,239,239,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193736_方晟宇_S505_1,S5051,session_present,,0,0.094,269,261,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193816_方晟宇_S505_2,S5052,session_present,,0,0.078,320,326,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_193904_方晟宇_S505_3,S5053,session_present,,0,0.078,268,272,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_194033_方晟宇_S506_1,S5061,session_present,,0,0.079,233,236,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260804,S5,rec20260804_194108_方晟宇_S506_2,S5062,session_present,,0,0.484,273,309,max gap = 0.484000s
+A,20260804,S5,rec20260804_194146_方晟宇_S506_3,S5063,session_present,,0,0.094,283,280,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_194237_方晟宇_S507_1,S5071,session_present,,0,0.078,158,156,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_194258_方晟宇_S507_2,S5072,session_present,,0,0.078,141,140,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_194320_方晟宇_S507_3,S5073,session_present,,0,0.078,128,130,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_194949_方晟宇_S508_1,S5081,session_present,,0,0.079,273,278,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195024_方晟宇_S508_2,S5082,session_present,,0,0.094,277,284,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195100_方晟宇_S508_3,S5083,session_present,,0,0.11,285,289,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195159_方晟宇_S509_1,S5091,session_present,,0,0.11,438,436,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195302_方晟宇_S509_2,S5092,session_present,,0,0.094,453,448,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195354_方晟宇_S509_3,S5093,session_present,,0,0.109,483,468,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195708_方晟宇_S510_1,S5101,session_present,,0,0.094,285,278,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195754_方晟宇_S510_2,S5102,session_present,,0,0.093,337,334,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195835_方晟宇_S510_3,S5103,session_present,,0,0.094,311,316,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_195925_方晟宇_S511_1,S5111,session_present,,0,0.094,325,329,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_200005_方晟宇_S511_2,S5112,session_present,,0,0.11,310,309,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S5,rec20260804_200112_方晟宇_S511_3,S5113,session_present,,0,0.094,286,288,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260804,S6,rec20260804_200941_胡宇轩_S601_1,S6011,session_present,,0,0.391,270,312,max gap = 0.391000s
+B,20260804,S6,rec20260804_201019_胡宇轩_S601_2,S6012,session_present,,0,0.734,237,212,max gap = 0.734000s
+B,20260804,S6,rec20260804_201050_胡宇轩_S601_3,S6013,session_present,,0,0.344,236,234,max gap = 0.344000s
+A,20260804,S6,rec20260804_201158_胡宇轩_S602_1,S6021,session_present,,0,0.078,273,271,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260804,S6,rec20260804_201240_胡宇轩_S602_2,S6022,session_present,,0,0.328,310,327,max gap = 0.328000s
+A,20260804,S6,rec20260804_201320_胡宇轩_S602_3,S6023,session_present,,0,0.156,273,287,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_201419_胡宇轩_S603_1,S6031,session_present,,0,0.11,407,405,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_201509_胡宇轩_S603_2,S6032,session_present,,0,0.094,406,410,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_201555_胡宇轩_S603_3,S6033,session_present,,0,0.093,372,380,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_201739_胡宇轩_S604_1,S6041,session_present,,0,0.187,278,274,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_201816_胡宇轩_S604_2,S6042,session_present,,0,0.109,265,271,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_201851_胡宇轩_S604_3,S6043,session_present,,0,0.093,259,262,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260804,S6,rec20260804_202323_胡宇轩_S605_1,S6051,session_present,,3,0.078,208,277,zero-frame seconds = 3
+A,20260804,S6,rec20260804_205657_胡宇轩_S605_2,S6052,session_present,,0,0.109,329,332,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_205739_胡宇轩_S605_3,S6053,session_present,,0,0.079,321,322,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_205816_胡宇轩_S606_1,S6061,session_present,,0,0.078,226,224,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_205845_胡宇轩_S606_2,S6062,session_present,,0,0.11,247,244,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_205921_胡宇轩_S606_3,S6063,session_present,,0,0.109,248,241,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_205955_胡宇轩_S607_1,S6071,session_present,,0,0.109,116,120,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210014_胡宇轩_S607_2,S6072,session_present,,0,0.078,126,128,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210033_胡宇轩_S607_3,S6073,session_present,,0,0.079,107,108,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210057_胡宇轩_S608_1,S6081,session_present,,0,0.094,276,276,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210218_胡宇轩_S608_2,S6082,session_present,,0,0.093,246,247,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210327_胡宇轩_S608_3,S6083,session_present,,0,0.079,245,246,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210417_胡宇轩_S609_1,S6091,session_present,,0,0.141,577,566,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210522_胡宇轩_S609_2,S6092,session_present,,0,0.125,572,561,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210625_胡宇轩_S609_3,S6093,session_present,,0,0.172,564,557,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210732_胡宇轩_S610_1,S6101,session_present,,0,0.078,326,332,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210811_胡宇轩_S610_2,S6102,session_present,,0,0.078,288,289,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210851_胡宇轩_S610_3,S6103,session_present,,0,0.094,324,323,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_210940_胡宇轩_S611_1,S6111,session_present,,0,0.078,297,294,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_211113_胡宇轩_S611_2,S6112,session_present,,0,0.079,276,285,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S6,rec20260804_211149_胡宇轩_S611_3,S6113,session_present,,0,0.078,267,267,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_212415_马浩然_S701_1,S7011,session_present,,0,0.094,306,302,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_212453_马浩然_S701_2,S7012,session_present,,0,0.11,379,382,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_212536_马浩然_S701_3,S7013,session_present,,0,0.125,347,346,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260804,S7,rec20260804_212648_马浩然_S702_1,S7021,session_present,,1,0.235,368,331,zero-frame seconds = 1
+B,20260804,S7,rec20260804_212732_马浩然_S702_2,S7022,session_present,,0,0.407,368,332,max gap = 0.407000s
+A,20260804,S7,rec20260804_212815_马浩然_S702_3,S7023,session_present,,0,0.172,426,424,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_212932_马浩然_S703_1,S7031,session_present,,0,0.125,393,387,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213017_马浩然_S703_2,S7032,session_present,,0,0.078,418,412,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213103_马浩然_S703_3,S7033,session_present,,0,0.093,425,422,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213213_马浩然_S704_1,S7041,session_present,,0,0.11,259,258,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213248_马浩然_S704_2,S7042,session_present,,0,0.094,271,271,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213321_马浩然_S704_3,S7043,session_present,,0,0.094,281,279,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213420_马浩然_S705_1,S7051,session_present,,0,0.094,264,265,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+D,20260804,S7,,S7052,session_dir_missing,"S7052-L,S7052-R",,,0,0,session directory missing: S705_2
+B,20260804,S7,rec20260804_213525_马浩然_S705_3,S7053,session_present,,0,0.312,277,287,max gap = 0.312000s
+A,20260804,S7,rec20260804_213613_马浩然_S706_1,S7061,session_present,,0,0.125,318,318,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213651_马浩然_S706_2,S7062,session_present,,0,0.079,342,340,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260804,S7,rec20260804_213734_马浩然_S706_3,S7063,session_present,,0,0.187,325,306,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+D,20260804,S7,,S7071,session_dir_missing,"S7071-L,S7071-R",,,0,0,session directory missing: S707_1
+D,20260804,S7,,S7072,session_dir_missing,"S7072-L,S7072-R",,,0,0,session directory missing: S707_2
+D,20260804,S7,,S7073,session_dir_missing,"S7073-L,S7073-R",,,0,0,session directory missing: S707_3
+D,20260804,S7,,S7081,session_dir_missing,"S7081-L,S7081-R",,,0,0,session directory missing: S708_1
+D,20260804,S7,,S7082,session_dir_missing,"S7082-L,S7082-R",,,0,0,session directory missing: S708_2
+D,20260804,S7,,S7083,session_dir_missing,"S7083-L,S7083-R",,,0,0,session directory missing: S708_3
+D,20260804,S7,,S7091,session_dir_missing,"S7091-L,S7091-R",,,0,0,session directory missing: S709_1
+D,20260804,S7,,S7092,session_dir_missing,"S7092-L,S7092-R",,,0,0,session directory missing: S709_2
+D,20260804,S7,,S7093,session_dir_missing,"S7093-L,S7093-R",,,0,0,session directory missing: S709_3
+D,20260804,S7,,S7101,session_dir_missing,"S7101-L,S7101-R",,,0,0,session directory missing: S710_1
+D,20260804,S7,,S7102,session_dir_missing,"S7102-L,S7102-R",,,0,0,session directory missing: S710_2
+D,20260804,S7,,S7103,session_dir_missing,"S7103-L,S7103-R",,,0,0,session directory missing: S710_3
+D,20260804,S7,,S7111,session_dir_missing,"S7111-L,S7111-R",,,0,0,session directory missing: S711_1
+D,20260804,S7,,S7112,session_dir_missing,"S7112-L,S7112-R",,,0,0,session directory missing: S711_2
+D,20260804,S7,,S7113,session_dir_missing,"S7113-L,S7113-R",,,0,0,session directory missing: S711_3
+A,20260807,S8,rec20260807_165454_邓永康_S801_1,S8011,session_present,,0,0.125,338,337,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_165536_邓永康_S801_2,S8012,session_present,,0,0.109,329,318,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_165613_邓永康_S801_3,S8013,session_present,,0,0.109,436,424,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260807,S8,rec20260807_165855_邓永康_S802_1,S8021,session_present,,0,0.468,245,215,max gap = 0.468000s
+A,20260807,S8,rec20260807_165926_邓永康_S802_2,S8022,session_present,,0,0.078,263,263,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_165958_邓永康_S802_3,S8023,session_present,,0,0.079,263,254,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170049_邓永康_S803_1,S8031,session_present,,0,0.093,337,340,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170136_邓永康_S803_2,S8032,session_present,,0,0.109,352,349,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170238_邓永康_S803_3,S8033,session_present,,0,0.172,348,337,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170319_邓永康_S804_1,S8041,session_present,,0,0.109,255,242,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170353_邓永康_S804_2,S8042,session_present,,0,0.297,278,280,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170433_邓永康_S804_3,S8043,session_present,,0,0.109,255,241,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170620_邓永康_S805_1,S8051,session_present,,0,0.078,283,280,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170655_邓永康_S805_2,S8052,session_present,,0,0.078,284,278,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260807,S8,rec20260807_170732_邓永康_S805_3,S8053,session_present,,1,0.094,273,275,zero-frame seconds = 1
+A,20260807,S8,rec20260807_170822_邓永康_S806_1,S8061,session_present,,0,0.11,212,203,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170850_邓永康_S806_2,S8062,session_present,,0,0.156,229,224,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_170919_邓永康_S806_3,S8063,session_present,,0,0.094,194,187,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_171003_邓永康_S807_1,S8071,session_present,,0,0.172,140,135,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260807,S8,rec20260807_171026_邓永康_S807_2,S8072,session_present,,0,0.094,131,129,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260807,S8,rec20260807_171048_邓永康_S807_3,S8073,session_present,,1,0.078,64,107,zero-frame seconds = 1
+C,20260807,S8,rec20260807_171131_邓永康_S808_1,S8081,session_present,S8081-L,8,0.109,0,231,single-foot missing: L
+C,20260807,S8,rec20260807_171205_邓永康_S808_2,S8082,session_present,S8082-L,9,0.093,0,252,single-foot missing: L
+C,20260807,S8,rec20260807_171238_邓永康_S808_3,S8083,session_present,S8083-L,8,0.078,0,229,single-foot missing: L
+C,20260807,S8,rec20260807_171323_邓永康_S809_1,S8091,session_present,S8091-L,13,0.109,0,391,single-foot missing: L
+C,20260807,S8,rec20260807_171411_邓永康_S809_2,S8092,session_present,S8092-L,14,0.094,0,398,single-foot missing: L
+C,20260807,S8,rec20260807_171459_邓永康_S809_3,S8093,session_present,S8093-L,16,0.11,0,464,single-foot missing: L
+C,20260807,S8,rec20260807_171557_邓永康_S810_1,S8101,session_present,S8101-L,10,0.078,0,288,single-foot missing: L
+C,20260807,S8,rec20260807_171632_邓永康_S810_2,S8102,session_present,S8102-L,11,0.079,0,318,single-foot missing: L
+C,20260807,S8,rec20260807_171709_邓永康_S810_3,S8103,session_present,S8103-L,11,0.125,0,323,single-foot missing: L
+C,20260807,S8,rec20260807_171941_邓永康_S811_1,S8111,session_present,S8111-L,9,0.078,0,257,single-foot missing: L
+C,20260807,S8,rec20260807_172014_邓永康_S811_2,S8112,session_present,S8112-L,8,0.125,0,223,single-foot missing: L
+C,20260807,S8,rec20260807_172043_邓永康_S811_3,S8113,session_present,S8113-L,9,0.141,0,243,single-foot missing: L
+C,20260808,S10,rec20260808_141410_金立波_S1001_1,S10011,session_present,S10011-L,19,0.109,0,581,single-foot missing: L
+C,20260808,S10,rec20260808_141514_金立波_S1001_2,S10012,session_present,S10012-L,9,0.078,0,249,single-foot missing: L
+C,20260808,S10,rec20260808_141544_金立波_S1001_3,S10013,session_present,S10013-L,10,0.078,0,281,single-foot missing: L
+C,20260808,S10,rec20260808_141620_金立波_S1002_1,S10021,session_present,S10021-L,9,0.078,0,268,single-foot missing: L
+C,20260808,S10,rec20260808_141652_金立波_S1002_2,S10022,session_present,S10022-L,9,0.078,0,276,single-foot missing: L
+C,20260808,S10,rec20260808_141725_金立波_S1002_3,S10023,session_present,S10023-L,10,0.109,0,284,single-foot missing: L
+C,20260808,S10,rec20260808_141835_金立波_S1003_1,S10031,session_present,S10031-L,15,0.094,0,434,single-foot missing: L
+C,20260808,S10,rec20260808_141924_金立波_S1003_2,S10032,session_present,S10032-L,15,0.078,0,426,single-foot missing: L
+C,20260808,S10,rec20260808_142013_金立波_S1003_3,S10033,session_present,S10033-L,16,0.109,0,464,single-foot missing: L
+C,20260808,S10,rec20260808_142105_金立波_S1004_1,S10041,session_present,S10041-L,12,0.079,0,358,single-foot missing: L
+C,20260808,S10,rec20260808_142147_金立波_S1004_2,S10042,session_present,S10042-L,11,0.078,0,322,single-foot missing: L
+C,20260808,S10,rec20260808_142225_金立波_S1004_3,S10043,session_present,S10043-L,11,0.078,0,334,single-foot missing: L
+C,20260808,S10,rec20260808_142325_金立波_S1005_1,S10051,session_present,S10051-L,11,0.11,0,314,single-foot missing: L
+C,20260808,S10,rec20260808_142402_金立波_S1005_2,S10052,session_present,S10052-L,11,0.078,0,331,single-foot missing: L
+C,20260808,S10,rec20260808_142439_金立波_S1005_3,S10053,session_present,S10053-L,11,0.078,0,340,single-foot missing: L
+C,20260808,S10,rec20260808_142545_金立波_S1006_1,S10061,session_present,S10061-L,9,0.078,0,273,single-foot missing: L
+C,20260808,S10,rec20260808_142618_金立波_S1006_2,S10062,session_present,S10062-L,10,0.093,0,281,single-foot missing: L
+C,20260808,S10,rec20260808_142651_金立波_S1006_3,S10063,session_present,S10063-L,10,0.078,0,294,single-foot missing: L
+C,20260808,S10,rec20260808_142751_金立波_S1007_1,S10071,session_present,S10071-L,5,0.063,0,130,single-foot missing: L
+B,20260808,S10,rec20260808_142810_金立波_S1007_2,S10072,session_present,,1,1.14,81,164,zero-frame seconds = 1; max gap > 1s (1.140000s)
+A,20260808,S10,rec20260808_142832_金立波_S1007_3,S10073,session_present,,0,0.078,162,161,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_142857_金立波_S1008_1,S10081,session_present,,0,0.079,248,252,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_142929_金立波_S1008_2,S10082,session_present,,0,0.079,242,239,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_142959_金立波_S1008_3,S10083,session_present,,0,0.094,248,253,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143038_金立波_S1009_1,S10091,session_present,,0,0.094,386,382,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143123_金立波_S1009_2,S10092,session_present,,0,0.109,360,342,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143205_金立波_S1009_3,S10093,session_present,,0,0.094,439,421,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143256_金立波_S1010_1,S10101,session_present,,0,0.094,375,371,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143338_金立波_S1010_2,S10102,session_present,,0,0.078,328,324,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143417_金立波_S1010_3,S10103,session_present,,0,0.079,335,334,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143500_金立波_S1011_1,S10111,session_present,,0,0.078,303,305,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143536_金立波_S1011_2,S10112,session_present,,0,0.11,330,326,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S10,rec20260808_143614_金立波_S1011_3,S10113,session_present,,0,0.094,349,348,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_145214_Samith_S1101_1,S11011,session_present,,0,0.109,416,407,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_145406_Samith_S1101_2,S11012,session_present,,0,0.093,301,301,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260808,S11,rec20260808_145444_Samith_S1101_3,S11013,session_present,,0,0.547,252,276,max gap = 0.547000s
+B,20260808,S11,rec20260808_145527_Samith_S1102_1,S11021,session_present,,1,0.282,331,314,zero-frame seconds = 1
+A,20260808,S11,rec20260808_145609_Samith_S1102_2,S11022,session_present,,0,0.156,340,345,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_145803_Samith_S1102_3,S11023,session_present,,0,0.094,265,259,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_145840_Samith_S1103_1,S11031,session_present,,0,0.094,363,362,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_145925_Samith_S1103_2,S11032,session_present,,0,0.125,354,345,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150008_Samith_S1103_3,S11033,session_present,,0,0.094,349,348,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150051_Samith_S1104_1,S11041,session_present,,0,0.11,271,255,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150126_Samith_S1104_2,S11042,session_present,,0,0.094,287,281,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150201_Samith_S1104_3,S11043,session_present,,0,0.094,273,266,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150321_Samith_S1105_1,S11051,session_present,,0,0.094,292,287,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150357_Samith_S1105_2,S11052,session_present,,0,0.094,310,303,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150436_Samith_S1105_3,S11053,session_present,,0,0.094,308,315,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150516_Samith_S1106_1,S11061,session_present,,0,0.078,206,204,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260808,S11,rec20260808_150543_Samith_S1106_2,S11062,session_present,,0,0.36,223,202,max gap = 0.360000s
+A,20260808,S11,rec20260808_150615_Samith_S1106_3,S11063,session_present,,0,0.187,222,212,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150650_Samith_S1107_1,S11071,session_present,,0,0.079,105,105,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150706_Samith_S1107_2,S11072,session_present,,0,0.078,107,102,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150723_Samith_S1107_3,S11073,session_present,,0,0.093,104,98,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150759_Samith_S1108_1,S11081,session_present,,0,0.093,219,219,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150827_Samith_S1108_2,S11082,session_present,,0,0.063,226,222,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150857_Samith_S1108_3,S11083,session_present,,0,0.094,231,229,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_150948_Samith_S1109_1,S11091,session_present,,0,0.109,445,434,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151041_Samith_S1109_2,S11092,session_present,,0,0.094,374,358,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151124_Samith_S1109_3,S11093,session_present,,0,0.14,366,354,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151304_Samith_S1110_1,S11101,session_present,,0,0.094,284,281,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151425_Samith_S1110_2,S11102,session_present,,0,0.11,270,258,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151507_Samith_S1110_3,S11103,session_present,,0,0.079,279,275,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151623_Samith_S1111_1,S11111,session_present,,0,0.094,245,237,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151651_Samith_S1111_2,S11112,session_present,,0,0.078,261,256,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S11,rec20260808_151723_Samith_S1111_3,S11113,session_present,,0,0.078,248,247,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260808,S12,rec20260808_162947_陈治宇_S1201_1,S12011,session_present,,0,0.718,380,426,max gap = 0.718000s
+A,20260808,S12,rec20260808_163037_陈治宇_S1201_2,S12012,session_present,,0,0.078,319,319,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_163118_陈治宇_S1201_3,S12013,session_present,,0,0.093,236,239,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_163553_陈治宇_S1202_1,S12021,session_present,,0,0.094,261,260,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260808,S12,rec20260808_163917_陈治宇_S1202_2,S12022,session_present,,1,0.109,217,206,zero-frame seconds = 1
+A,20260808,S12,rec20260808_163949_陈治宇_S1202_3,S12023,session_present,,0,0.109,220,214,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164057_陈治宇_S1203_1,S12031,session_present,,0,0.094,369,366,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164139_陈治宇_S1203_2,S12032,session_present,,0,0.11,363,360,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164223_陈治宇_S1203_3,S12033,session_present,,0,0.11,377,366,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164308_陈治宇_S1204_1,S12041,session_present,,0,0.125,255,250,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164343_陈治宇_S1204_2,S12042,session_present,,0,0.094,260,243,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164418_陈治宇_S1204_3,S12043,session_present,,0,0.094,254,241,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+D,20260808,S12,,S12051,session_dir_missing,"S12051-L,S12051-R",,,0,0,session directory missing: S1205_1
+A,20260808,S12,rec20260808_164536_陈治宇_S1205_2,S12052,session_present,,0,0.094,274,262,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164612_陈治宇_S1205_3,S12053,session_present,,0,0.11,256,255,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164711_陈治宇_S1206_1,S12061,session_present,,0,0.093,186,184,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164736_陈治宇_S1206_2,S12062,session_present,,0,0.078,194,190,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164802_陈治宇_S1206_3,S12063,session_present,,0,0.125,180,169,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164835_陈治宇_S1207_1,S12071,session_present,,0,0.093,113,113,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164852_陈治宇_S1207_2,S12072,session_present,,0,0.078,102,102,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164909_陈治宇_S1207_3,S12073,session_present,,0,0.078,122,123,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_164943_陈治宇_S1208_1,S12081,session_present,,0,0.078,219,224,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165012_陈治宇_S1208_2,S12082,session_present,,0,0.093,232,229,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165043_陈治宇_S1208_3,S12083,session_present,,0,0.094,238,229,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165241_陈治宇_S1209_1,S12091,session_present,,0,0.094,407,396,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165330_陈治宇_S1209_2,S12092,session_present,,0,0.094,407,400,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260808,S12,rec20260808_165418_陈治宇_S1209_3,S12093,session_present,,0,0.39,394,374,max gap = 0.390000s
+A,20260808,S12,rec20260808_165525_陈治宇_S1210_1,S12101,session_present,,0,0.11,250,245,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165600_陈治宇_S1210_2,S12102,session_present,,0,0.203,218,223,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165631_陈治宇_S1210_3,S12103,session_present,,0,0.204,215,217,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165722_陈治宇_S1211_1,S12111,session_present,,0,0.109,234,229,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165753_陈治宇_S1211_2,S12112,session_present,,0,0.079,239,232,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260808,S12,rec20260808_165824_陈治宇_S1211_3,S12113,session_present,,0,0.125,245,241,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+C,20260808,S9,rec20260808_120342_马皓然_S901_1,S9011,session_present,S9011-L,11,0.125,0,319,single-foot missing: L
+C,20260808,S9,rec20260808_120459_马皓然_S901_2,S9012,session_present,S9012-L,12,0.141,0,354,single-foot missing: L
+C,20260808,S9,rec20260808_120543_马皓然_S901_3,S9013,session_present,S9013-L,12,0.297,0,345,single-foot missing: L
+C,20260808,S9,rec20260808_120643_马皓然_S902_1,S9021,session_present,S9021-L,16,0.125,0,473,single-foot missing: L
+C,20260808,S9,rec20260808_120737_马皓然_S902_2,S9022,session_present,S9022-L,14,0.079,0,422,single-foot missing: L
+C,20260808,S9,rec20260808_120826_马皓然_S902_3,S9023,session_present,S9023-L,15,0.078,0,457,single-foot missing: L
+C,20260808,S9,rec20260808_120919_马皓然_S903_1,S9031,session_present,S9031-L,14,0.079,0,402,single-foot missing: L
+C,20260808,S9,rec20260808_121005_马皓然_S903_2,S9032,session_present,S9032-L,14,0.093,0,416,single-foot missing: L
+C,20260808,S9,rec20260808_121055_马皓然_S903_3,S9033,session_present,S9033-L,14,0.078,0,402,single-foot missing: L
+C,20260808,S9,rec20260808_121143_马皓然_S904_1,S9041,session_present,S9041-L,9,0.093,0,264,single-foot missing: L
+C,20260808,S9,rec20260808_121218_马皓然_S904_2,S9042,session_present,S9042-L,9,0.094,0,245,single-foot missing: L
+C,20260808,S9,rec20260808_121247_马皓然_S904_3,S9043,session_present,S9043-L,9,0.11,0,253,single-foot missing: L
+C,20260808,S9,rec20260808_121317_马皓然_S905_1,S9051,session_present,S9051-L,10,0.094,0,280,single-foot missing: L
+C,20260808,S9,rec20260808_121350_马皓然_S905_2,S9052,session_present,S9052-L,10,0.078,0,279,single-foot missing: L
+C,20260808,S9,rec20260808_121426_马皓然_S905_3,S9053,session_present,S9053-L,9,0.079,0,253,single-foot missing: L
+C,20260808,S9,rec20260808_121459_马皓然_S906_1,S9061,session_present,S9061-L,13,0.11,0,389,single-foot missing: L
+C,20260808,S9,rec20260808_121545_马皓然_S906_2,S9062,session_present,S9062-L,13,0.156,0,383,single-foot missing: L
+C,20260808,S9,rec20260808_121630_马皓然_S906_3,S9063,session_present,S9063-L,12,0.172,0,331,single-foot missing: L
+C,20260808,S9,rec20260808_121708_马皓然_S907_1,S9071,session_present,S9071-L,5,0.078,0,153,single-foot missing: L
+C,20260808,S9,rec20260808_121807_马皓然_S907_2,S9072,session_present,S9072-L,5,0.078,0,147,single-foot missing: L
+C,20260808,S9,rec20260808_121828_马皓然_S907_3,S9073,session_present,S9073-L,6,0.281,0,176,single-foot missing: L
+C,20260808,S9,rec20260808_121902_马皓然_S908_1,S9081,session_present,S9081-L,7,0.078,0,209,single-foot missing: L
+C,20260808,S9,rec20260808_121929_马皓然_S908_2,S9082,session_present,S9082-L,8,0.109,0,226,single-foot missing: L
+C,20260808,S9,rec20260808_121957_马皓然_S908_3,S9083,session_present,S9083-L,8,0.079,0,235,single-foot missing: L
+C,20260808,S9,rec20260808_122037_马皓然_S909_1,S9091,session_present,S9091-L,20,0.125,0,587,single-foot missing: L
+C,20260808,S9,rec20260808_122145_马皓然_S909_2,S9092,session_present,S9092-L,16,0.344,0,452,single-foot missing: L
+C,20260808,S9,rec20260808_122239_马皓然_S909_3,S9093,session_present,S9093-L,18,0.094,0,526,single-foot missing: L
+C,20260808,S9,rec20260808_122355_马皓然_S910_1,S9101,session_present,S9101-L,15,0.078,0,449,single-foot missing: L
+C,20260808,S9,rec20260808_122447_马皓然_S910_2,S9102,session_present,S9102-L,16,0.078,0,465,single-foot missing: L
+C,20260808,S9,rec20260808_122538_马皓然_S910_3,S9103,session_present,S9103-L,15,0.093,0,436,single-foot missing: L
+C,20260808,S9,rec20260808_122639_马皓然_S911_1,S9111,session_present,S9111-L,10,0.093,0,293,single-foot missing: L
+C,20260808,S9,rec20260808_122715_马皓然_S911_2,S9112,session_present,S9112-L,12,0.297,0,331,single-foot missing: L
+C,20260808,S9,rec20260808_122755_马皓然_S911_3,S9113,session_present,S9113-L,11,0.094,0,331,single-foot missing: L
+A,20260810,S13,rec20260810_205513_李鑫_S1301_1,S13011,session_present,,0,0.079,256,254,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_205547_李鑫_S1301_2,S13012,session_present,,0,0.125,316,300,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_205633_李鑫_S1301_3,S13013,session_present,,0,0.078,272,268,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_205721_李鑫_S1302_1,S13021,session_present,,0,0.11,359,343,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_205807_李鑫_S1302_2,S13022,session_present,,0,0.141,300,291,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_205849_李鑫_S1302_3,S13023,session_present,,0,0.125,325,312,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_205929_李鑫_S1303_1,S13031,session_present,,0,0.14,352,349,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210017_李鑫_S1303_2,S13032,session_present,,0,0.109,380,372,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210102_李鑫_S1303_3,S13033,session_present,,0,0.109,346,344,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210143_李鑫_S1304_1,S13041,session_present,,0,0.078,252,250,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210215_李鑫_S1304_2,S13042,session_present,,0,0.094,279,273,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210249_李鑫_S1304_3,S13043,session_present,,0,0.11,263,258,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210332_李鑫_S1305_1,S13051,session_present,,0,0.094,282,285,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210525_李鑫_S1305_2,S13052,session_present,,0,0.125,313,311,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210706_李鑫_S1305_3,S13053,session_present,,0,0.093,279,282,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210819_李鑫_S1306_1,S13061,session_present,,0,0.078,232,230,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210859_李鑫_S1306_2,S13062,session_present,,0,0.078,217,216,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_210934_李鑫_S1306_3,S13063,session_present,,0,0.094,237,234,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211035_李鑫_S1307_1,S13071,session_present,,0,0.078,143,138,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211059_李鑫_S1307_2,S13072,session_present,,0,0.11,139,134,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211122_李鑫_S1307_3,S13073,session_present,,0,0.078,128,122,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211224_李鑫_S1308_1,S13081,session_present,,0,0.094,227,222,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211259_李鑫_S1308_2,S13082,session_present,,0,0.109,208,208,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211331_李鑫_S1308_3,S13083,session_present,,0,0.141,225,210,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211426_李鑫_S1309_1,S13091,session_present,,0,0.094,426,409,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211515_李鑫_S1309_2,S13092,session_present,,0,0.094,388,369,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211602_李鑫_S1309_3,S13093,session_present,,0,0.109,401,394,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211700_李鑫_S1310_1,S13101,session_present,,0,0.094,261,258,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211739_李鑫_S1310_2,S13102,session_present,,0,0.094,260,260,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211816_李鑫_S1310_3,S13103,session_present,,0,0.094,268,261,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211910_李鑫_S1311_1,S13111,session_present,,0,0.079,308,306,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_211947_李鑫_S1311_2,S13112,session_present,,0,0.079,284,286,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S13,rec20260810_212026_李鑫_S1311_3,S13113,session_present,,0,0.078,291,284,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260810,S14,rec20260810_213839_师姐_S1401_1,S14011,session_present,,0,0.844,356,300,max gap = 0.844000s
+B,20260810,S14,rec20260810_213923_师姐_S1401_2,S14012,session_present,,0,0.5,364,331,max gap = 0.500000s
+B,20260810,S14,rec20260810_214006_师姐_S1401_3,S14013,session_present,,1,1.86,350,287,zero-frame seconds = 1; max gap > 1s (1.860000s)
+A,20260810,S14,rec20260810_214047_师姐_S1402_1,S14021,session_present,,0,0.109,331,334,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+B,20260810,S14,rec20260810_214128_师姐_S1402_2,S14022,session_present,,0,0.515,348,320,max gap = 0.515000s
+B,20260810,S14,rec20260810_214210_师姐_S1402_3,S14023,session_present,,0,0.359,312,287,max gap = 0.359000s
+A,20260810,S14,rec20260810_214248_师姐_S1403_1,S14031,session_present,,0,0.093,368,363,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214333_师姐_S1403_2,S14032,session_present,,0,0.109,354,346,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214536_师姐_S1403_3,S14033,session_present,,0,0.079,354,356,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214647_师姐_S1404_1,S14041,session_present,,0,0.094,282,284,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214725_师姐_S1404_2,S14042,session_present,,0,0.094,298,293,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214758_师姐_S1404_3,S14043,session_present,,0,0.079,308,311,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214839_师姐_S1405_1,S14051,session_present,,0,0.094,270,261,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214912_师姐_S1405_2,S14052,session_present,,0,0.094,256,251,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_214945_师姐_S1405_3,S14053,session_present,,0,0.109,272,262,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215019_师姐_S1406_1,S14061,session_present,,0,0.235,274,265,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215055_师姐_S1406_2,S14062,session_present,,0,0.297,270,268,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215130_师姐_S1406_3,S14063,session_present,,0,0.266,327,311,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215209_师姐_S1407_1,S14071,session_present,,0,0.078,141,139,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215228_师姐_S1407_2,S14072,session_present,,0,0.063,153,151,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215253_师姐_S1407_3,S14073,session_present,,0,0.079,149,151,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215319_师姐_S1408_1,S14081,session_present,,0,0.078,254,258,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215351_师姐_S1408_2,S14082,session_present,,0,0.078,236,236,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215419_师姐_S1408_3,S14083,session_present,,0,0.094,225,221,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215455_师姐_S1409_1,S14091,session_present,,0,0.125,405,391,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215541_师姐_S1409_2,S14092,session_present,,0,0.094,451,431,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215632_师姐_S1409_3,S14093,session_present,,0,0.109,409,394,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215729_师姐_S1410_1,S14101,session_present,,0,0.078,461,454,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215830_师姐_S1410_2,S14102,session_present,,0,0.094,407,407,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_215916_师姐_S1410_3,S14103,session_present,,0,0.094,362,355,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_220143_师姐_S1411_1,S14111,session_present,,0,0.094,281,264,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_220221_师姐_S1411_2,S14112,session_present,,0,0.094,284,278,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"
+A,20260810,S14,rec20260810_220255_师姐_S1411_3,S14113,session_present,,0,0.093,250,247,"both feet complete, zero-frame seconds = 0, max gap < 0.3s"

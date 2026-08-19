@@ -7,13 +7,14 @@ APP_TITLE = "动捕视频对齐工具"
 
 DEFAULT_CAM_ROOT = Path("E:/Data/1_Data/20260422/S2")
 DEFAULT_MOCAP_ROOT = Path("E:/Data/1_Data/20260422/VICON")
-DEFAULT_OUTPUT_ROOT = Path("sync/output")
-DEFAULT_CACHE_ROOT = Path("sync/cache")
+DEFAULT_OUTPUT_ROOT = Path("output/video_mocap")
+DEFAULT_TACTILE_OUTPUT_ROOT = Path("output/tactile_mocap")
+DEFAULT_CACHE_ROOT = Path("cache")
 DEFAULT_VISUAL_ALIGN_REVIEW_ROOT = Path("E:/S13/AlignReviews_csv")
 DEFAULT_RECONSTRUCTED_TACTILE_ROOT = Path(
     "E:/S13/reconstruction_20260817_020000"
 )
-DEFAULT_MISSING_PRESSURE_TABLE = Path("missing_pressure_objects.csv")
+DEFAULT_MISSING_PRESSURE_TABLE = Path("data/missing_pressure_objects.csv")
 
 DEFAULT_SOURCE_MODE = "auto"
 DEFAULT_AXIS_PRESET = "zup"

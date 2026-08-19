@@ -19,7 +19,7 @@ from PyQt5 import QtCore, QtWidgets
 
 from models import BVHMotion, SessionData
 from ui.widgets import InfoRow, TechPanel, repolish
-from config import DEFAULT_OUTPUT_ROOT, DEFAULT_RECONSTRUCTED_TACTILE_ROOT, DEFAULT_VISUAL_ALIGN_REVIEW_ROOT
+from config import DEFAULT_OUTPUT_ROOT, DEFAULT_TACTILE_OUTPUT_ROOT, DEFAULT_RECONSTRUCTED_TACTILE_ROOT, DEFAULT_VISUAL_ALIGN_REVIEW_ROOT
 from utils.bvh_parser import load_bvh_motion_preserve_frames
 from utils.bvh_pose import compute_joint_positions, transform_display_positions
 from utils.pressure_alignment import (
@@ -1459,7 +1459,7 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         else:
             trial_code = re.sub(r"[^0-9A-Za-z_-]+", "_", session_id)
 
-        out_dir = DEFAULT_OUTPUT_ROOT / "fake_tactile_csv"
+        out_dir = DEFAULT_TACTILE_OUTPUT_ROOT / "fake_frames"
         out_dir.mkdir(parents=True, exist_ok=True)
         default_path = str(out_dir / f"{trial_code}_fake_frames.csv")
         path, _ = QtWidgets.QFileDialog.getSaveFileName(

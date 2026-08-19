@@ -9,7 +9,7 @@ import re
 
 import numpy as np
 
-from config import DEFAULT_OUTPUT_ROOT
+from config import DEFAULT_OUTPUT_ROOT, DEFAULT_TACTILE_OUTPUT_ROOT
 from models import BVHMotion
 from utils.bvh_pose import compute_joint_positions, transform_display_positions
 
@@ -1112,7 +1112,7 @@ def build_pressure_aligned_curve_matrix(
 
 def export_pressure_alignment_bundle(
     *,
-    output_root: Path = DEFAULT_OUTPUT_ROOT,
+    output_root: Path = DEFAULT_TACTILE_OUTPUT_ROOT,
     result: PressureAlignmentResult,
     mocap: MocapFootCurveSet,
     pressure: PressureCurveSet,
