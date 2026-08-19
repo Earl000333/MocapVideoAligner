@@ -15,8 +15,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from utils.bvh_parser import load_bvh_motion_preserve_frames
 from utils.pressure_alignment import (
     list_reconstructed_segments,
+    load_pressure_quality_skip_ids,
     load_reconstructed_pressure_sensors,
     resolve_reconstructed_rec_dir,
+    trial_dataset_id,
+    build_pressure_skip_index,
     build_pressure_curve_set,
     build_pressure_aligned_curve_matrix,
     estimate_pressure_alignment,
@@ -307,6 +310,9 @@ class PressureAlignmentTests(unittest.TestCase):
             left, right = load_reconstructed_pressure_sensors(rec_dir)
             self.assertEqual(left.sensor_values.shape, (4, 48))
             self.assertEqual(right.sensor_values.shape, (4, 48))
+            self.assertIsNotNone(left.valid_mask)
+            self.assertIsNotNone(right.valid_mask)
+            self.assertEqual(list(left.valid_mask), [1, 0, 1, 1])
             # earliest absolute time is left t0 start (0.001s), so left starts near 0
             self.assertAlmostEqual(float(left.time_s[0]), 0.0, places=6)
             self.assertGreater(float(right.time_s[0]), 0.0)
@@ -316,6 +322,136 @@ class PressureAlignmentTests(unittest.TestCase):
             pressure = build_pressure_curve_set(left, right, reference_fps=40.0)
             self.assertEqual(len(pressure.left_sum), len(pressure.right_sum))
             self.assertGreater(float(np.max(pressure.left_sum)), 0.0)
+            self.assertIsNotNone(pressure.left_valid)
+            self.assertTrue(np.any(np.asarray(pressure.left_valid) == 0))
+            self.assertTrue(np.any(np.asarray(pressure.left_valid) != 0))
+
+    def test_reconstructed_continuous_format_loader(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir) / "reconstruction_20260817_120000"
+            rec_dir = root / "20260810" / "S14" / "rec20260810_213839_demo_S1401_1"
+            rec_dir.mkdir(parents=True)
+
+            header = "frame_idx,t_us,valid_mask,source_frame_idx,source_t_us," + ",".join(str(i) for i in range(1, 49))
+            left_rows = [
+                header,
+                "0,1000,1,0,1000," + ",".join("1" for _ in range(48)),
+                "1,26000,0,,," + ",".join("2" for _ in range(48)),
+                "2,51000,1,2,51000," + ",".join("5" for _ in range(48)),
+                "3,76000,1,3,76000," + ",".join("6" for _ in range(48)),
+            ]
+            right_rows = [
+                header,
+                "0,2000,1,0,2000," + ",".join("3" for _ in range(48)),
+                "1,27000,0,,," + ",".join("4" for _ in range(48)),
+                "2,52000,1,2,52000," + ",".join("7" for _ in range(48)),
+                "3,77000,1,3,77000," + ",".join("8" for _ in range(48)),
+            ]
+            _write_text(rec_dir / "pressure_left.csv", "\n".join(left_rows))
+            _write_text(rec_dir / "pressure_right.csv", "\n".join(right_rows))
+            _write_text(
+                rec_dir / "reconstruction_manifest.csv",
+                "block_type,side,name,prev_name,next_name,frame_idx_start,frame_idx_end,t_us_start,t_us_end,"
+                "source_rows,inserted_rows,dt_hat_us,source_t_us_start,source_t_us_end,contact_transition_mode\n"
+                "segment,left,t0,,,0,1,1000,26000,1,1,25000.0,1000,1000,\n"
+                "bridge,left,t0->t1,t0,t1,1,1,26000,26000,0,1,25000.0,,,\n"
+                "segment,left,t1,,,2,3,51000,76000,2,0,25000.0,51000,76000,\n",
+            )
+
+            # continuous format does not expose per-segment files
+            self.assertEqual(list_reconstructed_segments(rec_dir), [])
+            self.assertEqual(resolve_reconstructed_rec_dir("S1401_1", root), rec_dir)
+
+            left, right = load_reconstructed_pressure_sensors(rec_dir)
+            self.assertEqual(left.sensor_values.shape, (4, 48))
+            self.assertEqual(right.sensor_values.shape, (4, 48))
+            self.assertEqual(list(left.valid_mask), [1, 0, 1, 1])
+            self.assertEqual(list(right.valid_mask), [1, 0, 1, 1])
+            self.assertTrue(left.is_valid_at(0))
+            self.assertFalse(left.is_valid_at(1))
+
+            pressure = build_pressure_curve_set(left, right, reference_fps=40.0)
+            self.assertIsNotNone(pressure.left_valid)
+            self.assertIsNotNone(pressure.right_valid)
+            self.assertEqual(len(pressure.left_valid), len(pressure.time_s))
+
+    def test_reconstructed_one_sided_empty_continuous_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir) / "reconstruction_20260817_020000"
+            rec_dir = root / "20260810" / "S13" / "rec20260810_205547_demo_S1301_2"
+            rec_dir.mkdir(parents=True)
+
+            header = "frame_idx,t_us,valid_mask,source_frame_idx,source_t_us," + ",".join(str(i) for i in range(1, 49))
+            left_rows = [
+                header,
+                "0,15000,1,0,15000," + ",".join("10" for _ in range(48)),
+                "1,40000,0,,," + ",".join("20" for _ in range(48)),
+            ]
+            _write_text(rec_dir / "pressure_left.csv", "\n".join(left_rows))
+            _write_text(rec_dir / "pressure_right.csv", header + "\n")
+            _write_text(
+                rec_dir / "reconstruction_manifest.csv",
+                "block_type,side,name,prev_name,next_name,frame_idx_start,frame_idx_end,t_us_start,t_us_end,"
+                "source_rows,inserted_rows,dt_hat_us,source_t_us_start,source_t_us_end,contact_transition_mode\n"
+                "segment,left,t0,,,0,0,15000.0,15000.0,1,0,25000.0,15000.0,15000.0,\n"
+                "resample,right,40hz,,,0,0,0.0,0.0,0,0,25000.0,0.0,0.0,\n",
+            )
+
+            with self.assertRaises(FileNotFoundError):
+                load_reconstructed_pressure_sensors(rec_dir)
+
+    def test_pressure_quality_skip_table(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            table = Path(tmp_dir) / "missing_pressure_objects.csv"
+            _write_text(
+                table,
+                "quality_class,date,subject,session_name,dataset_id,session_status,missing_side_objects,"
+                "zero_frame_second_count,max_gap_s,left_total_frames,right_total_frames,reason\n"
+                "A,20260810,S13,rec_x,S13011,session_present,,0,0.1,10,10,ok\n"
+                "C,20260810,S13,rec_y,S13012,session_present,S13012-R,0,0.1,10,0,single-foot missing: R\n"
+                "D,20260810,S13,,S13021,session_dir_missing,S13021-L,S13021-R,,,,session missing\n",
+            )
+            skip_ids = load_pressure_quality_skip_ids(table)
+            self.assertEqual(skip_ids, {"S13012", "S13021"})
+            self.assertEqual(trial_dataset_id("S1301_2"), "S13012")
+            self.assertEqual(trial_dataset_id("S13012"), "S13012")
+            self.assertIn(trial_dataset_id("S1301_2"), skip_ids)
+            self.assertNotIn(trial_dataset_id("S1301_1"), skip_ids)
+
+    def test_scan_empty_side_uses_compact_dataset_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir) / "reconstruction_20260817_020000"
+            rec_dir = root / "20260810" / "S13" / "rec20260810_205547_demo_S1301_2"
+            rec_dir.mkdir(parents=True)
+
+            header = "frame_idx,t_us,valid_mask,source_frame_idx,source_t_us," + ",".join(str(i) for i in range(1, 49))
+            left_rows = [
+                header,
+                "0,15000,1,0,15000," + ",".join("10" for _ in range(48)),
+            ]
+            _write_text(rec_dir / "pressure_left.csv", "\n".join(left_rows))
+            _write_text(rec_dir / "pressure_right.csv", header + "\n")
+            _write_text(
+                rec_dir / "reconstruction_manifest.csv",
+                "block_type,side,name\nsegment,left,t0\n",
+            )
+
+            table = Path(tmp_dir) / "missing_pressure_objects.csv"
+            _write_text(
+                table,
+                "quality_class,date,subject,session_name,dataset_id,session_status,missing_side_objects,"
+                "zero_frame_second_count,max_gap_s,left_total_frames,right_total_frames,reason\n"
+                "A,20260810,S13,rec_y,S13012,session_present,,0,0.1,10,10,ok\n",
+            )
+
+            self.assertEqual(trial_dataset_id(rec_dir.name), "S13012")
+            skip_ids, labels = build_pressure_skip_index(
+                quality_table=table,
+                reconstruction_root=root,
+            )
+            self.assertIn("S13012", skip_ids)
+            self.assertEqual(labels.get("S13012"), "C")
+
 
 if __name__ == "__main__":
     unittest.main()

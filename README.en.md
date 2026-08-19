@@ -1,16 +1,19 @@
 # MocapVideoAligner English Documentation
 
-> A lightweight PyQt desktop tool for aligning multi-camera visual recordings with BVH motion-capture data.
+> A lightweight PyQt desktop tool for aligning multi-camera visual recordings and plantar-pressure data with BVH motion-capture data.
 
-[中文文档](README.zh-CN.md) | [Back to language selector](README.md)
+[中文文档](README.zh-CN.md) | [Back to language selector](README.md) | [Tactile Alignment Notes (Chinese)](触觉对齐机制说明.md)
 
 ---
 
 ## 1. Overview
 
-`MocapVideoAligner` is a desktop GUI tool for aligning visual recordings from a multi-camera system with BVH motion-capture data from systems such as VICON.
+`MocapVideoAligner` is a desktop GUI tool for aligning:
 
-The tool is designed for offline lab workflows where visual data and motion-capture data are collected by separate systems and need to be synchronized after recording. It does not require a GPU, does not run a web server, and can still operate when only part of the expected data is available.
+1. multi-camera visual recordings with BVH motion-capture data (`delta_t`)
+2. aligned mocap with plantar-pressure / tactile data (`delta_t2`)
+
+The tool is designed for offline lab workflows where visual data, pressure data, and motion-capture data are collected by separate systems and need to be synchronized after recording. It does not require a GPU, does not run a web server, and can still operate when only part of the expected data is available.
 
 The current version focuses on the following practical issues:
 
@@ -19,6 +22,8 @@ The current version focuses on the following practical issues:
 - Mocap data is commonly recorded at 120fps.
 - A single trial may contain one, two, three, four, or more BVH files.
 - Raw BVH coordinates may make the skeleton appear lying down in a direct 3D preview.
+- Plantar pressure may come from reconstructed continuous CSVs or legacy segmented CSVs.
+- Some trials have missing tactile data and must be skipped in navigation while remaining visible but disabled in the trial picker.
 - The tool should run on lower-end CPU-only computers.
 
 By default, the application opens the GUI only. Users select the camera root folder and mocap root folder from the toolbar, then load the trial.
@@ -26,6 +31,8 @@ By default, the application opens the GUI only. Users select the camera root fol
 ---
 
 ## 2. Key Features
+
+### 2.1 Visual-Mocap Alignment
 
 - Single-window PyQt GUI.
 - Camera root and mocap root folder selection from the toolbar.
@@ -48,6 +55,21 @@ By default, the application opens the GUI only. Users select the camera root fol
 - Aligned BVH, metadata JSON, curve CSV, and figure PNG export.
 - Lite mode for lower-end computers.
 
+### 2.2 Mocap-Tactile Alignment
+
+- Separate tab that does not rewrite visual-mocap export fields.
+- Legacy mechanism: foot-grounding curve cross-correlation.
+- New mechanism: touchdown / loading-onset event matching.
+- Reconstructed tactile continuous format and legacy segmented format support.
+- `valid_mask` visualization: original frames as solid lines, reconstructed frames as dashed lines; heatmap can show `Valid`.
+- Paired left / right curve toggles that persist across trial switches.
+- Click / drag playhead on the alignment curve.
+- Multi-segment Fake start / end marking, exported with left-foot frame indexing.
+- Quality-table `C/D` trial skip in navigation and disabled items in the trial picker.
+- Export of `*_pressure_alignment.json`, pressure curve CSV, and Fake frame CSV.
+
+Detailed notes (Chinese): [触觉对齐机制说明.md](触觉对齐机制说明.md)
+
 ---
 
 ## 3. Requirements
@@ -65,6 +87,7 @@ Core dependencies:
 - `matplotlib`
 - `opencv-python`
 - `PyQt5`
+- `scipy` (used by the mocap-tactile new mechanism)
 
 ---
 
@@ -90,7 +113,7 @@ python main.py
 If PyQt5 installation fails, install the core packages manually:
 
 ```bash
-pip install PyQt5 opencv-python matplotlib numpy
+pip install PyQt5 opencv-python matplotlib numpy scipy
 ```
 
 ---
@@ -198,6 +221,33 @@ mocap_root/
       S4011_Skeleton3.bvh
 ```
 
+### Reconstructed Tactile Data
+
+Preferred continuous format:
+
+```text
+reconstruction_<timestamp>/
+  20260804/S5/rec20260804_192218_xxx_S501_1/
+    pressure_left.csv
+    pressure_right.csv
+    reconstruction_manifest.csv
+```
+
+Legacy segmented format:
+
+```text
+rec..._S501_1/
+  pressure_left_t0.csv
+  pressure_right_t0.csv
+  reconstruction_manifest.csv
+```
+
+Optional quality table in the project root:
+
+```text
+missing_pressure_objects.csv
+```
+
 Recommended naming:
 
 - Mocap folder name: `S<subject><two-digit-action><repetition>`, for example `S4011`.
@@ -207,16 +257,29 @@ Recommended naming:
 
 ## 7. Standard Workflow
 
+### 7.1 Visual-Mocap Alignment
+
 1. Run `python main.py`.
 2. Click `Camera Folder` in the toolbar and select the camera root folder.
 3. Click `Mocap Folder` and select the VICON / BVH root folder.
 4. Use previous / next trial navigation to select a trial.
 5. Click reload.
 6. Check the camera previews, skeleton preview, and alignment curves.
-7. Click auto-align to estimate the initial offset.
+7. Click auto-align to estimate the initial offset `delta_t`.
 8. Fine-tune with buttons, sliders, or keyboard shortcuts.
 9. Mark start and end when clip boundaries are needed.
 10. Export the clip log or the current alignment result.
+
+### 7.2 Mocap-Tactile Alignment
+
+1. Preferably finish visual-mocap alignment first and obtain `*_aligned.bvh`.
+2. Switch to the `Mocap-Tactile Alignment` tab.
+3. Import a reconstructed tactile root (`reconstruction_<timestamp>`) when needed.
+4. Optionally import visual-alignment CSV priors.
+5. Choose the legacy or new mechanism; the page auto-estimates `delta_t2`.
+6. Click / drag the curve playhead and inspect heatmaps, skeleton, and curves.
+7. Mark multi-segment Fake intervals if needed, then export the Fake frame CSV.
+8. Export the pressure-alignment result.
 
 ---
 
@@ -233,6 +296,11 @@ The visual timeline no longer assumes a fixed 40fps:
 
 This reduces long-term drift when the real visual FPS differs from the intended 40fps.
 
+On the tactile side:
+
+- Pressure timelines prefer absolute `t_us` from reconstructed files.
+- Left and right feet may use their own timelines. Fake export uses left-foot discrete frames as the base and nearest-neighbor mapping for the right foot.
+
 ---
 
 ## 9. BVH Handling
@@ -248,11 +316,15 @@ The tool supports any number of BVH files:
 
 The display-axis transform affects only GUI rendering. Exported BVH motion data remains in the original coordinate system.
 
+The mocap-tactile page prefers visual-aligned `*_aligned.bvh` files.
+
 ---
 
 ## 10. GUI Layout
 
-The main window contains:
+The main window contains two tabs.
+
+### 10.1 Visual-Mocap Alignment
 
 - Toolbar: trial navigation, folder selection, reload, auto-align, export.
 - Camera preview area: four synchronized camera views.
@@ -267,6 +339,19 @@ Skeleton overlay:
 - Use the mouse wheel to scale.
 - Double-click to reset the overlay position.
 
+### 10.2 Mocap-Tactile Alignment
+
+- Left / right pressure heatmaps plus skeleton preview.
+- Alignment curves: four L/R curves in legacy mode, or two total curves in the new mechanism.
+- Click / drag playhead on the curve.
+- Sidebar mechanism buttons and import actions for reconstructed tactile data / visual priors.
+- Fake start / end / undo / export controls.
+
+Trial navigation extras:
+
+- Quality classes `C/D` are skipped by previous / next navigation.
+- The trial picker still shows `C/D` items, but they are grayed out and not selectable.
+
 ---
 
 ## 11. Exported Files
@@ -277,7 +362,7 @@ Default output directory:
 sync/output/<session_id>/
 ```
 
-Exported files:
+### 11.1 Visual-Mocap Exports
 
 - `<session_id>_<role>_aligned.bvh`: BVH clipped according to the current offset.
 - `<session_id>_alignment.json`: alignment metadata.
@@ -295,6 +380,19 @@ Exported files:
 - display and alignment BVH roles
 - axis preset
 
+### 11.2 Mocap-Tactile Exports
+
+- `<session_id>_pressure_alignment.json`
+- `<session_id>_pressure_aligned_curves.csv`
+- `<session_id>_pressure_calibration.png`
+- `sync/output/fake_tactile_csv/*_fake_frames.csv`
+
+Fake frame CSV header:
+
+```csv
+segment_id,left_frame_idx,left_time_s,right_frame_idx,right_time_s
+```
+
 ---
 
 ## 12. Lite Mode and Performance
@@ -304,6 +402,7 @@ The tool can run without a dedicated GPU. The main performance costs are:
 - image or video decoding
 - Matplotlib curve rendering
 - 3D skeleton rendering
+- reconstructed tactile loading and event estimation
 
 For lower-end machines:
 
@@ -341,6 +440,8 @@ If data or timing logic changes, delete the corresponding session cache director
 | `2` | Mark end |
 | `Enter` | Export current result |
 | `PageUp` / `PageDown` | Previous / next trial |
+
+Fake marking, mechanism switching, and pressure-specific exports on the tactile tab are primarily button-driven.
 
 ---
 
@@ -381,6 +482,18 @@ Check:
 - whether image sequence filenames contain reliable timestamps
 - whether MP4 files are variable-frame-rate videos. If they are, image sequences with timestamps are preferred.
 
+### Some trials are skipped or grayed out
+
+Check whether `missing_pressure_objects.csv` marks the `dataset_id` as `C/D`, or whether one reconstructed pressure side has no numeric frames.
+
+### Pressure data cannot be loaded on the tactile tab
+
+Check:
+
+- whether the correct `reconstruction_<timestamp>` root was imported
+- whether `pressure_left.csv` / `pressure_right.csv` or legacy `pressure_*_t*.csv` files exist
+- whether either side is header-only empty data
+
 ---
 
 ## 15. Development and Tests
@@ -391,25 +504,35 @@ Run tests:
 python -m unittest discover -s tests
 ```
 
+Tactile-focused tests:
+
+```bash
+python -m unittest tests.test_pressure_alignment -v
+```
+
 Compile check:
 
 ```bash
-python -m py_compile main.py visualize_energy.py models.py ui/main_window.py ui/widgets.py utils/session.py utils/energy.py utils/alignment.py utils/exporter.py
+python -m py_compile main.py visualize_energy.py models.py ui/main_window.py ui/pressure_alignment_page.py ui/widgets.py utils/session.py utils/energy.py utils/alignment.py utils/pressure_alignment.py utils/pressure_dynamics_alignment.py utils/exporter.py
 ```
 
 Main files:
 
 ```text
-main.py                 compatibility entrypoint
-visualize_energy.py     GUI startup entrypoint
-config.py               default paths, frame rate, cache version
-models.py               data models
-ui/                     PyQt GUI
-utils/session.py        data discovery, loading, and cache
-utils/energy.py         energy calculation, actual FPS, resampling
-utils/alignment.py      alignment and frame mapping
-utils/exporter.py       export logic
-tests/                  unit tests and lightweight fixtures
+main.py                              compatibility entrypoint
+visualize_energy.py                  GUI startup entrypoint
+config.py                            default paths, frame rate, cache version, tactile defaults
+models.py                            data models
+ui/main_window.py                    main window and visual-mocap page
+ui/pressure_alignment_page.py        mocap-tactile alignment page
+utils/session.py                     data discovery, loading, and cache
+utils/energy.py                      energy calculation, actual FPS, resampling
+utils/alignment.py                   visual-mocap alignment and frame mapping
+utils/pressure_alignment.py          pressure loading, legacy mechanism, export, quality skip
+utils/pressure_dynamics_alignment.py new mechanism (touchdown events)
+utils/exporter.py                    visual-page export logic
+tests/                               unit tests and lightweight fixtures
+触觉对齐机制说明.md                   tactile-page design notes
 ```
 
 ---

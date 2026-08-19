@@ -1,16 +1,21 @@
 # MocapVideoAligner 中文文档
 
-> 一个用于对齐四相机视觉数据与 BVH 动捕数据的轻量级 PyQt 桌面工具。
+> 一个用于对齐四相机视觉数据、足底触觉压力数据与 BVH 动捕数据的轻量级 PyQt 桌面工具。
 
-[English Documentation](README.en.md) | [返回语言选择](README.md)
+[English Documentation](README.en.md) | [返回语言选择](README.md) | [触觉对齐机制说明](触觉对齐机制说明.md)
 
 ---
 
 ## 1. 项目简介
 
-`MocapVideoAligner` 用于把视觉系统采集的多相机画面和 VICON / BVH 动捕数据放到同一个时间轴中进行检查、自动对齐、手动微调和导出。
+`MocapVideoAligner` 用于把视觉系统采集的多相机画面、足底压力数据，以及 VICON / BVH 动捕数据放到同一个时间轴中进行检查、自动对齐、手动微调和导出。
 
-本工具主要面向实验室数据采集后的离线对齐流程。它不依赖 GPU，不需要 Web 服务，也不要求数据一开始就完整。只要有相机数据或动捕数据中的任意一部分，软件都可以尽可能加载并提供对应功能。
+本工具主要面向实验室数据采集后的离线对齐流程。它不依赖 GPU，不需要 Web 服务，也不要求数据一开始就完整。只要有相机数据、动捕数据或触觉数据中的可用部分，软件都可以尽可能加载并提供对应功能。
+
+当前版本包含两个对齐页签：
+
+1. **视觉-动捕对齐**：求解 `delta_t`，并导出 aligned BVH 等结果。
+2. **动捕-触觉对齐**：在已对齐动捕基础上求解 `delta_t2`，检查压力热图 / 曲线，并支持 Fake 片段标记。
 
 当前版本重点解决以下问题：
 
@@ -19,6 +24,8 @@
 - 动捕数据通常为 120fps。
 - 同一试次可能存在 1 个、2 个、3 个、4 个或更多 BVH 文件。
 - BVH 原始坐标系可能导致骨架预览中人物“躺下”。
+- 足底压力可能来自重建触觉连续文件或旧分段文件。
+- 部分试次存在触觉缺失，需要在导航中跳过并在列表中置灰。
 - 低配或无独显电脑也需要能够运行。
 
 软件默认启动后只打开主界面，不自动加载默认路径数据。用户需要在 GUI 右上角选择相机目录和动捕目录，再点击重新加载。
@@ -26,6 +33,8 @@
 ---
 
 ## 2. 核心功能
+
+### 2.1 视觉-动捕对齐
 
 - 单窗口 PyQt GUI。
 - 支持在界面中选择相机根目录和动捕根目录。
@@ -46,6 +55,21 @@
 - 支持导出裁剪记录 CSV。
 - 支持导出裁切后的 BVH、对齐曲线 CSV、元数据 JSON 和曲线截图 PNG。
 - 支持轻量模式，降低低配电脑上的刷新压力。
+
+### 2.2 动捕-触觉对齐
+
+- 新增独立页签，不改动原视觉-动捕导出字段。
+- 支持旧机制：足底贴地曲线互相关。
+- 支持新机制：触地事件对齐。
+- 支持重建触觉新连续格式与旧分段格式。
+- 支持 `valid_mask` 显示：原始帧实线、重建帧虚线；热图可显示 `Valid`。
+- 支持左右脚成对曲线勾选，切换试次时保留勾选状态。
+- 支持点击 / 拖动曲线移动预览光标。
+- 支持多段 Fake 起点 / 终点标记，并以左脚帧为基准导出。
+- 支持质量表 `C/D` 试次跳过与选择列表置灰。
+- 支持导出 `*_pressure_alignment.json`、曲线 CSV 与 Fake 帧表。
+
+更细的机制说明见：[触觉对齐机制说明.md](触觉对齐机制说明.md)
 
 ---
 
@@ -89,7 +113,7 @@ python main.py
 如果 PyQt5 安装失败，可以单独安装：
 
 ```bash
-pip install PyQt5 opencv-python matplotlib numpy
+pip install PyQt5 opencv-python matplotlib numpy scipy
 ```
 
 ---
@@ -197,6 +221,33 @@ mocap_root/
       S4011_Skeleton3.bvh
 ```
 
+### 重建触觉数据
+
+新连续格式（优先）：
+
+```text
+reconstruction_<timestamp>/
+  20260804/S5/rec20260804_192218_xxx_S501_1/
+    pressure_left.csv
+    pressure_right.csv
+    reconstruction_manifest.csv
+```
+
+旧分段格式（兼容）：
+
+```text
+rec..._S501_1/
+  pressure_left_t0.csv
+  pressure_right_t0.csv
+  reconstruction_manifest.csv
+```
+
+可选质量表（放在工程根目录）：
+
+```text
+missing_pressure_objects.csv
+```
+
 试次命名建议：
 
 - 动捕目录名：`S<对象><动作两位><重复次数>`，例如 `S4011`。
@@ -206,16 +257,29 @@ mocap_root/
 
 ## 7. 标准使用流程
 
+### 7.1 视觉-动捕对齐
+
 1. 运行 `python main.py`。
 2. 在右上角点击“相机目录”，选择相机数据根目录。
 3. 点击“动捕目录”，选择 VICON / BVH 数据根目录。
 4. 使用“上一试次 / 下一试次”选择目标试次。
 5. 点击“重新加载”。
 6. 检查四路相机预览、骨架预览和对齐曲线。
-7. 点击“自动对齐”获得初始偏移。
+7. 点击“自动对齐”获得初始偏移 `delta_t`。
 8. 使用底部按钮、滑条或方向键进行人工微调。
 9. 需要裁剪时，点击“记录起点”和“记录终点”。
 10. 点击“导出裁剪记录”或“导出当前结果”。
+
+### 7.2 动捕-触觉对齐
+
+1. 建议先完成视觉-动捕对齐，得到 `*_aligned.bvh`。
+2. 切换到「动捕-触觉对齐」页签。
+3. 如有需要，点击“导入重建触觉数据”，选择 `reconstruction_<timestamp>` 根目录。
+4. 可选：导入视频-动捕对齐结果 CSV，辅助初始化。
+5. 选择旧机制或新机制，软件会自动估计 `delta_t2`。
+6. 点击 / 拖动曲线检查热图、骨架与压力曲线。
+7. 如需标注异常压力段，记录多段 Fake 起点 / 终点并导出。
+8. 导出压力对齐结果。
 
 ---
 
@@ -232,6 +296,11 @@ mocap_root/
 
 这可以减少“设定 40fps，但实际只有 37.xfps”导致的长时间漂移。
 
+触觉侧：
+
+- 优先使用重建压力文件中的 `t_us` 时间轴。
+- 左右脚可在各自时间轴上存在，导出 Fake 时以左脚离散帧为基准，右脚取最近邻。
+
 ---
 
 ## 9. BVH 处理逻辑
@@ -247,11 +316,15 @@ mocap_root/
 
 显示坐标修正只影响 GUI 预览，不会改写原始 BVH 数据。
 
+动捕-触觉页优先读取视觉对齐后的 `*_aligned.bvh`。
+
 ---
 
 ## 10. 界面说明
 
-主界面包含：
+主界面包含两个页签：
+
+### 10.1 视觉-动捕对齐
 
 - 顶部工具栏：试次导航、目录选择、重新加载、自动对齐、导出。
 - 相机预览区：四路相机画面，同步显示当前视觉帧。
@@ -266,6 +339,19 @@ mocap_root/
 - 鼠标滚轮缩放。
 - 双击重置位置。
 
+### 10.2 动捕-触觉对齐
+
+- 左右脚压力热图 + 动捕骨架预览。
+- 对齐曲线：旧机制四条 L/R 曲线，或新机制两条总曲线。
+- 可点击 / 拖动曲线移动预览光标。
+- 右侧可切换旧机制 / 新机制，并导入重建触觉 / 视觉对齐先验。
+- 支持 Fake 起点、终点、撤销与导出。
+
+试次导航补充规则：
+
+- 质量表 `C/D` 会在上一 / 下一试次中跳过。
+- 选择批次列表仍显示 `C/D`，但置灰不可选。
+
 ---
 
 ## 11. 导出内容
@@ -276,7 +362,7 @@ mocap_root/
 sync/output/<session_id>/
 ```
 
-导出文件包括：
+### 11.1 视觉-动捕导出
 
 - `<session_id>_<role>_aligned.bvh`：按当前偏移裁切后的 BVH。
 - `<session_id>_alignment.json`：对齐元数据。
@@ -294,6 +380,19 @@ sync/output/<session_id>/
 - 显示和对齐使用的 BVH 角色
 - 坐标预设
 
+### 11.2 动捕-触觉导出
+
+- `<session_id>_pressure_alignment.json`
+- `<session_id>_pressure_aligned_curves.csv`
+- `<session_id>_pressure_calibration.png`
+- `sync/output/fake_tactile_csv/*_fake_frames.csv`
+
+Fake 帧表头：
+
+```csv
+segment_id,left_frame_idx,left_time_s,right_frame_idx,right_time_s
+```
+
 ---
 
 ## 12. 轻量模式与性能
@@ -303,6 +402,7 @@ sync/output/<session_id>/
 - 图片或视频解码。
 - Matplotlib 曲线绘制。
 - 3D 骨架绘制。
+- 重建触觉与 BVH 事件估计。
 
 低配机器建议：
 
@@ -340,6 +440,8 @@ sync/cache/
 | `2` | 记录终点 |
 | `Enter` | 导出当前结果 |
 | `PageUp` / `PageDown` | 上一试次 / 下一试次 |
+
+动捕-触觉页的 Fake 标记、机制切换与导出以页面按钮为主。
 
 ---
 
@@ -380,6 +482,19 @@ python main.py --auto-load
 - 逐帧图片文件名是否包含可靠时间戳。
 - MP4 是否为可变帧率视频。若是，建议使用逐帧图片和时间戳。
 
+### 某些试次被跳过或选择列表置灰
+
+检查 `missing_pressure_objects.csv` 中对应 `dataset_id` 是否为 `C/D`，  
+或重建目录是否左右脚一侧无有效帧。
+
+### 动捕-触觉页加载不到压力
+
+确认：
+
+- 已导入正确的 `reconstruction_<timestamp>` 根目录。
+- 目录中存在 `pressure_left.csv` / `pressure_right.csv`，或旧格式 `pressure_*_t*.csv`。
+- 文件不是仅有表头的空侧数据。
+
 ---
 
 ## 15. 开发与测试
@@ -390,25 +505,35 @@ python main.py --auto-load
 python -m unittest discover -s tests
 ```
 
+重点相关测试：
+
+```bash
+python -m unittest tests.test_pressure_alignment -v
+```
+
 语法检查：
 
 ```bash
-python -m py_compile main.py visualize_energy.py models.py ui/main_window.py ui/widgets.py utils/session.py utils/energy.py utils/alignment.py utils/exporter.py
+python -m py_compile main.py visualize_energy.py models.py ui/main_window.py ui/pressure_alignment_page.py ui/widgets.py utils/session.py utils/energy.py utils/alignment.py utils/pressure_alignment.py utils/pressure_dynamics_alignment.py utils/exporter.py
 ```
 
 主要文件：
 
 ```text
-main.py                 兼容入口
-visualize_energy.py     GUI 启动入口
-config.py               默认路径、帧率、缓存版本等配置
-models.py               数据模型
-ui/                     PyQt 界面
-utils/session.py        数据发现、加载和缓存
-utils/energy.py         能量计算、实际 FPS 和重采样
-utils/alignment.py      对齐和帧映射
-utils/exporter.py       导出逻辑
-tests/                  单元测试和轻量 fixture
+main.py                              兼容入口
+visualize_energy.py                  GUI 启动入口
+config.py                            默认路径、帧率、缓存版本、触觉默认路径
+models.py                            数据模型
+ui/main_window.py                    主窗口与视觉-动捕页
+ui/pressure_alignment_page.py        动捕-触觉对齐页
+utils/session.py                     数据发现、加载和缓存
+utils/energy.py                      能量计算、实际 FPS 和重采样
+utils/alignment.py                   视觉-动捕对齐和帧映射
+utils/pressure_alignment.py          压力加载、旧机制、导出、质量跳过
+utils/pressure_dynamics_alignment.py 新机制（触地事件）
+utils/exporter.py                    视觉页导出逻辑
+tests/                               单元测试和轻量 fixture
+触觉对齐机制说明.md                   触觉页专项说明
 ```
 
 ---

@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 from typing import Callable
+import csv
+import re
 
 import matplotlib
 
@@ -17,7 +19,7 @@ from PyQt5 import QtCore, QtWidgets
 
 from models import BVHMotion, SessionData
 from ui.widgets import InfoRow, TechPanel, repolish
-from config import DEFAULT_RECONSTRUCTED_TACTILE_ROOT, DEFAULT_VISUAL_ALIGN_REVIEW_ROOT
+from config import DEFAULT_OUTPUT_ROOT, DEFAULT_RECONSTRUCTED_TACTILE_ROOT, DEFAULT_VISUAL_ALIGN_REVIEW_ROOT
 from utils.bvh_parser import load_bvh_motion_preserve_frames
 from utils.bvh_pose import compute_joint_positions, transform_display_positions
 from utils.pressure_alignment import (
@@ -59,20 +61,30 @@ def _is_foot_joint(name: str) -> bool:
     return any(token in lower for token in ("foot", "toe", "heel", "ankle", "ball"))
 
 
-def _sample_pressure_values(data: PressureSensorFrameSet | None, preview_time: float) -> np.ndarray | None:
+def _sample_pressure_values(
+    data: PressureSensorFrameSet | None,
+    preview_time: float,
+) -> tuple[np.ndarray | None, bool | None]:
+    """Return interpolated sensor values and nearest-frame valid flag."""
     if data is None or len(data.time_s) == 0 or len(data.sensor_values) == 0:
-        return None
+        return None, None
     if len(data.time_s) == 1:
-        return data.sensor_values[0]
+        return data.sensor_values[0], data.is_valid_at(0)
+
+    # Nearest frame for validity badge; interpolate values for smooth heatmap.
+    nearest = int(np.argmin(np.abs(np.asarray(data.time_s, dtype=np.float64) - float(preview_time))))
+    nearest = max(0, min(nearest, len(data.time_s) - 1))
+    valid = data.is_valid_at(nearest)
 
     index = int(np.searchsorted(data.time_s, preview_time, side="right") - 1)
     index = max(0, min(index, len(data.time_s) - 2))
     start_time = float(data.time_s[index])
     end_time = float(data.time_s[index + 1])
     if end_time <= start_time:
-        return data.sensor_values[index]
+        return data.sensor_values[index], valid
     alpha = np.clip((preview_time - start_time) / (end_time - start_time), 0.0, 1.0)
-    return data.sensor_values[index] * (1.0 - alpha) + data.sensor_values[index + 1] * alpha
+    values = data.sensor_values[index] * (1.0 - alpha) + data.sensor_values[index + 1] * alpha
+    return values, valid
 
 
 class FootPressureCanvas(FigureCanvas):
@@ -85,6 +97,7 @@ class FootPressureCanvas(FigureCanvas):
         self._outline = self._outline_raw.copy()
         self._sensor_coords = self._sensor_coords_raw.copy()
         self._values = np.zeros(len(self._sensor_coords), dtype=np.float64)
+        self._frame_valid: bool | None = None
         self._ax = self.figure.add_subplot(111)
         self._ax.set_facecolor("#F7EEE4")
         self._ax.set_aspect("equal")
@@ -92,7 +105,8 @@ class FootPressureCanvas(FigureCanvas):
         self.setMinimumSize(240, 300)
         self._render_empty(active=False)
 
-    def set_values(self, values: np.ndarray | None) -> None:
+    def set_values(self, values: np.ndarray | None, valid: bool | None = None) -> None:
+        self._frame_valid = valid
         if values is None or len(values) == 0:
             self._values = np.zeros(len(self._sensor_coords), dtype=np.float64)
             self._render_empty(active=False)
@@ -168,6 +182,26 @@ class FootPressureCanvas(FigureCanvas):
         self._draw_outline(active=True)
         self._draw_points(active=True)
         self._draw_outline(active=True, fill=False)
+        if self._frame_valid is True:
+            self._ax.text(
+                0.04,
+                0.96,
+                "Valid",
+                transform=self._ax.transAxes,
+                ha="left",
+                va="top",
+                fontsize=11,
+                fontweight="bold",
+                color="#0F766E",
+                bbox={
+                    "boxstyle": "round,pad=0.25",
+                    "facecolor": "#D9F3EE",
+                    "edgecolor": "#0F766E",
+                    "linewidth": 1.0,
+                    "alpha": 0.92,
+                },
+                zorder=10,
+            )
         self.draw_idle()
 
 
@@ -181,6 +215,8 @@ class FootMotionCanvas(FigureCanvas):
         self._motion: BVHMotion | None = None
         self._axis_preset = "zup"
         self._preview_time = 0.0
+        self._fake_segments: list[dict] = []
+        self._pending_fake_start: dict | None = None
         self._frame_index = 0
         self._foot_joint_mask: np.ndarray | None = None
         self._edge_artists = []
@@ -292,6 +328,9 @@ class FootMotionCanvas(FigureCanvas):
 
 
 class PressureCurveCanvas(FigureCanvas):
+    # Seek preview playhead by clicking / dragging on the curve, same as visual page.
+    clicked = QtCore.pyqtSignal(float)
+
     def __init__(self, parent=None) -> None:
         self.figure = Figure(figsize=(10.8, 4.6), facecolor="#F3E6D7")
         super().__init__(self.figure)
@@ -306,6 +345,10 @@ class PressureCurveCanvas(FigureCanvas):
             "mocap_vgrf": True,
             "tactile_vgrf": True,
         }
+        self._dragging_playhead = False
+        self.mpl_connect("button_press_event", self._on_button_press)
+        self.mpl_connect("motion_notify_event", self._on_motion_notify)
+        self.mpl_connect("button_release_event", self._on_button_release)
         self._render_empty(ylabel="归一化")
 
     def _style_axis(self) -> None:
@@ -317,6 +360,48 @@ class PressureCurveCanvas(FigureCanvas):
         self.ax.xaxis.label.set_color("#241C17")
         self.ax.yaxis.label.set_color("#241C17")
         self.ax.grid(alpha=0.28, color="#D2BCA9")
+
+    def _event_time(self, event) -> float | None:
+        if event is None or event.xdata is None:
+            return None
+        # Accept clicks on main axis or dynamics twin axis.
+        if event.inaxes is None:
+            return None
+        if event.inaxes is not self.ax and event.inaxes not in getattr(self.figure, "axes", []):
+            return None
+        return float(event.xdata)
+
+    def _on_button_press(self, event) -> None:
+        if getattr(event, "button", None) not in (1, None):
+            return
+        x_value = self._event_time(event)
+        if x_value is None:
+            return
+        self._dragging_playhead = True
+        self.clicked.emit(x_value)
+
+    def _on_motion_notify(self, event) -> None:
+        if not getattr(self, "_dragging_playhead", False):
+            return
+        x_value = self._event_time(event)
+        if x_value is None:
+            return
+        self.clicked.emit(x_value)
+
+    def _on_button_release(self, event) -> None:
+        if getattr(event, "button", None) not in (1, None):
+            return
+        self._dragging_playhead = False
+
+    def _reset_axes(self) -> None:
+        """Clear main axis and drop any leftover twin axes from prior modes."""
+        for extra_ax in list(self.figure.axes):
+            if extra_ax is not self.ax:
+                self.figure.delaxes(extra_ax)
+        self.ax.clear()
+        self.ax.set_title("")
+        # Restore default single-axis margins after dynamics twin-axis layout.
+        self.figure.subplots_adjust(left=0.07, right=0.99, bottom=0.14, top=0.95)
 
     def set_series_visibility(
         self,
@@ -342,17 +427,188 @@ class PressureCurveCanvas(FigureCanvas):
             self._series_visible["tactile_vgrf"] = bool(tactile_vgrf)
 
     def _render_empty(self, *, ylabel: str = "归一化") -> None:
-        self.ax.clear()
+        self._reset_axes()
         self._style_axis()
         self.ax.text(0.5, 0.5, "请先加载用于对齐的数据", transform=self.ax.transAxes, ha="center", va="center")
         self.ax.set_xlabel("时间（秒）")
         self.ax.set_ylabel(ylabel)
         self.draw_idle()
 
-    def _plot_series(self, x: np.ndarray, y: np.ndarray, *, label: str, color: str, linestyle: str = "-", visible: bool = True) -> None:
+    def _plot_series(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+        *,
+        label: str,
+        color: str,
+        linestyle: str = "-",
+        visible: bool = True,
+        valid_mask: np.ndarray | None = None,
+    ) -> None:
         if not visible or len(x) == 0 or len(y) == 0:
             return
-        self.ax.plot(x, y, color=color, linewidth=2.0, linestyle=linestyle, label=label)
+        x = np.asarray(x, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        n = min(len(x), len(y))
+        x = x[:n]
+        y = y[:n]
+        if valid_mask is None or len(valid_mask) == 0:
+            self.ax.plot(x, y, color=color, linewidth=2.0, linestyle=linestyle, label=label)
+            return
+
+        # valid_mask=1 (original/source) => solid; reconstructed/other(0) => dashed
+        mask = (np.asarray(valid_mask[:n]) != 0)
+        labeled = False
+        for is_valid, style in ((True, "-"), (False, "--")):
+            selected = mask if is_valid else ~mask
+            if not np.any(selected):
+                continue
+            idx = np.flatnonzero(selected)
+            splits = np.where(np.diff(idx) > 1)[0] + 1
+            for group in np.split(idx, splits):
+                if len(group) == 0:
+                    continue
+                start_i = int(group[0])
+                end_i = int(group[-1]) + 1
+                # Share one neighbor sample so segment junctions stay continuous.
+                left = max(0, start_i - (1 if start_i > 0 else 0))
+                right = min(n, end_i + (1 if end_i < n else 0))
+                # Prefer endpoints inside the selected run, but keep at least 2 points.
+                if right - left < 2:
+                    left = max(0, start_i)
+                    right = min(n, end_i)
+                    if right - left < 2 and start_i > 0:
+                        left = start_i - 1
+                    if right - left < 2 and end_i < n:
+                        right = end_i + 1
+                seg_x = x[left:right]
+                seg_y = y[left:right]
+                if len(seg_x) < 2:
+                    continue
+                use_label = label if not labeled else None
+                self.ax.plot(
+                    seg_x,
+                    seg_y,
+                    color=color,
+                    linewidth=2.0,
+                    linestyle=style,
+                    label=use_label,
+                )
+                labeled = True
+
+
+    def _draw_fake_markers(
+        self,
+        *,
+        fake_segments: list[dict] | None,
+        pending_fake_start: float | None,
+    ) -> None:
+        """Shade completed fake segments and mark pending/open endpoints."""
+        labeled_start = False
+        labeled_end = False
+        labeled_span = False
+        for seg in fake_segments or []:
+            start_t = seg.get("start_time_s")
+            end_t = seg.get("end_time_s")
+            if start_t is None or end_t is None:
+                continue
+            start_t = float(start_t)
+            end_t = float(end_t)
+            lo, hi = (start_t, end_t) if start_t <= end_t else (end_t, start_t)
+            self.ax.axvspan(
+                lo,
+                hi,
+                color="#F59E0B",
+                alpha=0.16,
+                zorder=0,
+                label=("Fake 片段" if not labeled_span else None),
+            )
+            labeled_span = True
+            self.ax.axvline(
+                start_t,
+                color="#16A34A",
+                linewidth=1.8,
+                alpha=0.9,
+                label=("Fake起点" if not labeled_start else None),
+            )
+            labeled_start = True
+            self.ax.axvline(
+                end_t,
+                color="#2563EB",
+                linewidth=1.8,
+                linestyle="--",
+                alpha=0.9,
+                label=("Fake终点" if not labeled_end else None),
+            )
+            labeled_end = True
+        if pending_fake_start is not None:
+            self.ax.axvline(
+                float(pending_fake_start),
+                color="#16A34A",
+                linewidth=2.0,
+                alpha=0.95,
+                label=("Fake起点(待定终点)" if not labeled_start else None),
+            )
+
+
+    def _draw_strike_events(
+        self,
+        *,
+        dynamics: DynamicsVgrfCurveSet,
+        delta_t2: float,
+        show_mocap: bool,
+        show_tactile: bool,
+    ) -> None:
+        """Mark strike / loading-onset events on the new-mechanism preview curves."""
+        mocap_t = getattr(dynamics, "mocap_strike_times_s", None)
+        press_t = getattr(dynamics, "pressure_strike_times_s", None)
+        labeled_m = False
+        labeled_p = False
+
+        if show_tactile and press_t is not None and len(press_t):
+            y_src = np.asarray(dynamics.tactile_vgrf_bw, dtype=np.float64)
+            x_src = np.asarray(dynamics.time_s, dtype=np.float64)
+            if len(x_src) and len(y_src):
+                xs = np.asarray(press_t, dtype=np.float64)
+                ys = np.interp(xs, x_src, y_src)
+                self.ax.scatter(
+                    xs,
+                    ys,
+                    s=42,
+                    c="#A94F5B",
+                    marker="o",
+                    edgecolors="#5C2430",
+                    linewidths=0.8,
+                    zorder=6,
+                    label="触觉触地事件",
+                )
+                labeled_p = True
+
+        if show_mocap and mocap_t is not None and len(mocap_t):
+            y_src = np.asarray(dynamics.mocap_vgrf_bw, dtype=np.float64)
+            x_src = np.asarray(dynamics.time_s, dtype=np.float64)
+            if len(x_src) and len(y_src):
+                xs = np.asarray(mocap_t, dtype=np.float64) + float(delta_t2)
+                ys = np.interp(xs - float(delta_t2), x_src, y_src)
+                # Prefer the twin axis when it exists so markers share the mocap scale.
+                axes = list(getattr(self.figure, "axes", []) or [])
+                target_ax = axes[-1] if len(axes) > 1 else self.ax
+                target_ax.scatter(
+                    xs,
+                    ys,
+                    s=48,
+                    c="#355166",
+                    marker="D",
+                    edgecolors="#1B2C38",
+                    linewidths=0.8,
+                    zorder=6,
+                    label="动捕触地事件",
+                )
+                labeled_m = True
+
+        # No-op if neither side had events; keep signature side-effect free otherwise.
+        _ = (labeled_m, labeled_p)
+
 
     def render(
         self,
@@ -363,19 +619,19 @@ class PressureCurveCanvas(FigureCanvas):
         *,
         mode: str = "legacy",
         dynamics: DynamicsVgrfCurveSet | None = None,
+        fake_segments: list[dict] | None = None,
+        pending_fake_start: float | None = None,
     ) -> None:
-        # 新机制：只显示两条总曲线（动捕 vGRF/BW vs 触觉 vGRF/BW）
+        # 新机制：只显示两条总曲线（动捕 触地代理 vs 触觉 压力总和）
         # 使用双纵轴，避免两条曲线振幅差一个数量级时，动捕曲线在视觉上被压成水平线。
         if mode == "dynamics":
             if dynamics is None:
-                self._render_empty(ylabel="vGRF / BW")
+                self._render_empty(ylabel="对齐曲线")
                 return
-            self.ax.clear()
+            self._reset_axes()
             self._style_axis()
-            # Remove any previous twin axes left by prior dynamics renders.
-            for extra_ax in list(self.figure.axes):
-                if extra_ax is not self.ax:
-                    self.figure.delaxes(extra_ax)
+            # Leave room for the right-side twin y-axis labels.
+            self.figure.subplots_adjust(left=0.07, right=0.90, bottom=0.14, top=0.90)
 
             shifted_time = dynamics.time_s + delta_t2
             show_mocap = self._series_visible.get("mocap_vgrf", True)
@@ -384,16 +640,31 @@ class PressureCurveCanvas(FigureCanvas):
             labels = []
 
             if show_tactile and len(dynamics.time_s) and len(dynamics.tactile_vgrf_bw):
-                (line_t,) = self.ax.plot(
-                    dynamics.time_s,
-                    dynamics.tactile_vgrf_bw,
-                    color="#A94F5B",
-                    linewidth=2.0,
-                    label="触觉 vGRF/BW",
-                )
-                handles.append(line_t)
-                labels.append("触觉 vGRF/BW")
-                self.ax.set_ylabel("触觉 vGRF/BW", color="#A94F5B")
+                tactile_valid = getattr(dynamics, "tactile_valid", None)
+                if tactile_valid is not None and len(tactile_valid):
+                    self._plot_series(
+                        dynamics.time_s,
+                        dynamics.tactile_vgrf_bw,
+                        label="触觉 压力总和",
+                        color="#A94F5B",
+                        visible=True,
+                        valid_mask=tactile_valid,
+                    )
+                    handles_labels = self.ax.get_legend_handles_labels()
+                    if handles_labels[0]:
+                        handles.append(handles_labels[0][-1])
+                        labels.append("触觉 压力总和")
+                else:
+                    (line_t,) = self.ax.plot(
+                        dynamics.time_s,
+                        dynamics.tactile_vgrf_bw,
+                        color="#A94F5B",
+                        linewidth=2.0,
+                        label="触觉 压力总和",
+                    )
+                    handles.append(line_t)
+                    labels.append("触觉 压力总和")
+                self.ax.set_ylabel("触觉 压力总和", color="#A94F5B")
                 self.ax.tick_params(axis="y", colors="#A94F5B")
 
             if show_mocap and len(shifted_time) and len(dynamics.mocap_vgrf_bw):
@@ -406,9 +677,9 @@ class PressureCurveCanvas(FigureCanvas):
                         color="#355166",
                         linewidth=2.0,
                         linestyle="--",
-                        label="动捕 vGRF/BW",
+                        label="动捕 触地代理",
                     )
-                    ax_m.set_ylabel("动捕 vGRF/BW", color="#355166")
+                    ax_m.set_ylabel("动捕 触地代理", color="#355166")
                     ax_m.tick_params(axis="y", colors="#355166")
                     # Keep twin-axis spines readable on the shared style.
                     for spine in ax_m.spines.values():
@@ -420,30 +691,50 @@ class PressureCurveCanvas(FigureCanvas):
                         color="#355166",
                         linewidth=2.0,
                         linestyle="--",
-                        label="动捕 vGRF/BW",
+                        label="动捕 触地代理",
                     )
-                    self.ax.set_ylabel("动捕 vGRF/BW", color="#355166")
+                    self.ax.set_ylabel("动捕 触地代理", color="#355166")
                     self.ax.tick_params(axis="y", colors="#355166")
                 handles.append(line_m)
-                labels.append("动捕 vGRF/BW")
+                labels.append("动捕 触地代理")
 
+            self._draw_fake_markers(fake_segments=fake_segments, pending_fake_start=pending_fake_start)
+            self._draw_strike_events(
+                dynamics=dynamics,
+                delta_t2=delta_t2,
+                show_mocap=show_mocap,
+                show_tactile=show_tactile,
+            )
             self.ax.axvline(preview_time, color="#241C17", linewidth=1.5, alpha=0.52)
             self.ax.set_xlabel("时间（秒）")
-            if labels:
+            # Merge line / marker labels across primary and twin axes.
+            merged_h, merged_l = [], []
+            seen = set()
+            for ax in getattr(self.figure, "axes", []) or [self.ax]:
+                for h, lab in zip(*ax.get_legend_handles_labels()):
+                    if not lab or lab in seen:
+                        continue
+                    seen.add(lab)
+                    merged_h.append(h)
+                    merged_l.append(lab)
+            if merged_h:
+                self.ax.legend(merged_h, merged_l, loc="upper right", fontsize=11, ncol=2)
+            elif labels:
                 self.ax.legend(handles, labels, loc="upper right", fontsize=11, ncol=2)
             else:
-                self.ax.text(0.5, 0.5, "没有可见曲线", transform=self.ax.transAxes, ha="center", va="center")
+                self.ax.text(0.5, 0.5, "??????", transform=self.ax.transAxes, ha="center", va="center")
 
-            # Annotate numeric amplitude so flat-looking traces can be audited.
+# Strike-estimator diagnostics (offset is event-based, not correlation).
             if len(dynamics.mocap_vgrf_bw) and len(dynamics.tactile_vgrf_bw):
-                m = dynamics.mocap_vgrf_bw
-                t = dynamics.tactile_vgrf_bw
-                lo = int(0.1 * len(m))
-                hi = max(lo + 1, int(0.9 * len(m)))
+                n_evt = int(getattr(dynamics, "event_n", 0) or 0)
+                scatter = getattr(dynamics, "event_scatter", float("nan"))
+                ok = bool(getattr(dynamics, "event_ok", False))
+                note = getattr(dynamics, "event_note", "") or ""
+                scatter_txt = f"{scatter:.4f}s" if scatter == scatter else "nan"
                 msg = (
-                    f"动捕 mid80 std={float(np.std(m[lo:hi])):.4f}, ptp={float(np.ptp(m[lo:hi])):.4f}  |  "
-                    f"触觉 mid80 std={float(np.std(t[lo:hi])):.4f}, ptp={float(np.ptp(t[lo:hi])):.4f}  |  "
+                    f"触地事件 n={n_evt} | scatter={scatter_txt} | ok={ok} | "
                     f"scale→m={float(getattr(dynamics, 'length_scale_to_m', 1.0)):g}"
+                    + (f" | {note}" if note else "")
                 )
                 self.ax.set_title(msg, fontsize=10, color="#5E5045", pad=8)
 
@@ -462,7 +753,7 @@ class PressureCurveCanvas(FigureCanvas):
             self._render_empty(ylabel="归一化")
             return
 
-        self.ax.clear()
+        self._reset_axes()
         self._style_axis()
         if pressure is not None:
             self._plot_series(
@@ -471,6 +762,7 @@ class PressureCurveCanvas(FigureCanvas):
                 label="触觉-L",
                 color="#A94F5B",
                 visible=self._series_visible["pressure_left"],
+                valid_mask=getattr(pressure, "left_valid", None),
             )
             self._plot_series(
                 pressure.time_s,
@@ -478,6 +770,7 @@ class PressureCurveCanvas(FigureCanvas):
                 label="触觉-R",
                 color="#D97706",
                 visible=self._series_visible["pressure_right"],
+                valid_mask=getattr(pressure, "right_valid", None),
             )
         if mocap is not None:
             shifted_time = mocap.time_s + delta_t2
@@ -497,6 +790,7 @@ class PressureCurveCanvas(FigureCanvas):
                 linestyle="--",
                 visible=self._series_visible["mocap_right"],
             )
+        self._draw_fake_markers(fake_segments=fake_segments, pending_fake_start=pending_fake_start)
         self.ax.axvline(preview_time, color="#241C17", linewidth=1.5, alpha=0.52)
         self.ax.set_xlabel("时间（秒）")
         self.ax.set_ylabel("归一化")
@@ -655,34 +949,31 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         selector_label.setProperty("metricTitle", True)
         selector_row.addWidget(selector_label)
 
-        self.mocap_left_check = QtWidgets.QCheckBox("动捕-L")
-        self.mocap_left_check.setChecked(True)
-        self.mocap_left_check.stateChanged.connect(self._on_curve_visibility_changed)
-        selector_row.addWidget(self.mocap_left_check)
+        # 旧机制：L / R 成对显示（触觉 + 动捕同步勾选）
+        self.pair_left_check = QtWidgets.QCheckBox("左脚 L（触觉+动捕）")
+        self.pair_left_check.setChecked(True)
+        self.pair_left_check.stateChanged.connect(self._on_curve_visibility_changed)
+        selector_row.addWidget(self.pair_left_check)
 
-        self.mocap_right_check = QtWidgets.QCheckBox("动捕-R")
-        self.mocap_right_check.setChecked(True)
-        self.mocap_right_check.stateChanged.connect(self._on_curve_visibility_changed)
-        selector_row.addWidget(self.mocap_right_check)
+        self.pair_right_check = QtWidgets.QCheckBox("右脚 R（触觉+动捕）")
+        self.pair_right_check.setChecked(True)
+        self.pair_right_check.stateChanged.connect(self._on_curve_visibility_changed)
+        selector_row.addWidget(self.pair_right_check)
 
-        self.pressure_left_check = QtWidgets.QCheckBox("触觉-L")
-        self.pressure_left_check.setChecked(True)
-        self.pressure_left_check.stateChanged.connect(self._on_curve_visibility_changed)
-        selector_row.addWidget(self.pressure_left_check)
-
-        self.pressure_right_check = QtWidgets.QCheckBox("触觉-R")
-        self.pressure_right_check.setChecked(True)
-        self.pressure_right_check.stateChanged.connect(self._on_curve_visibility_changed)
-        selector_row.addWidget(self.pressure_right_check)
+        # Aliases kept for readability at older call sites.
+        self.mocap_left_check = self.pair_left_check
+        self.mocap_right_check = self.pair_right_check
+        self.pressure_left_check = self.pair_left_check
+        self.pressure_right_check = self.pair_right_check
 
         # 新机制只使用两条总曲线；默认隐藏，由模式切换显示。
-        self.mocap_vgrf_check = QtWidgets.QCheckBox("动捕 vGRF/BW")
+        self.mocap_vgrf_check = QtWidgets.QCheckBox("动捕 触地代理")
         self.mocap_vgrf_check.setChecked(True)
         self.mocap_vgrf_check.stateChanged.connect(self._on_curve_visibility_changed)
         self.mocap_vgrf_check.setVisible(False)
         selector_row.addWidget(self.mocap_vgrf_check)
 
-        self.tactile_vgrf_check = QtWidgets.QCheckBox("触觉 vGRF/BW")
+        self.tactile_vgrf_check = QtWidgets.QCheckBox("触觉 压力总和")
         self.tactile_vgrf_check.setChecked(True)
         self.tactile_vgrf_check.stateChanged.connect(self._on_curve_visibility_changed)
         self.tactile_vgrf_check.setVisible(False)
@@ -696,6 +987,7 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         layout.addLayout(top_row)
 
         self.curve_canvas = PressureCurveCanvas()
+        self.curve_canvas.clicked.connect(self._on_curve_clicked)
         layout.addWidget(self.curve_canvas, 1)
 
         control_row = QtWidgets.QHBoxLayout()
@@ -741,6 +1033,24 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         self.delta_spin.setMaximumWidth(120)
         control_row.addWidget(self.delta_spin)
         layout.addLayout(control_row)
+
+        fake_row = QtWidgets.QHBoxLayout()
+        fake_row.setSpacing(8)
+        self.fake_start_btn = QtWidgets.QPushButton("记录Fake起点")
+        self.fake_end_btn = QtWidgets.QPushButton("记录Fake终点")
+        self.fake_undo_btn = QtWidgets.QPushButton("撤销上一段")
+        self.fake_export_btn = QtWidgets.QPushButton("导出Fake帧CSV")
+        for btn in (self.fake_start_btn, self.fake_end_btn, self.fake_undo_btn, self.fake_export_btn):
+            btn.setEnabled(False)
+            fake_row.addWidget(btn)
+        self.fake_start_btn.clicked.connect(self._record_fake_start)
+        self.fake_end_btn.clicked.connect(self._record_fake_end)
+        self.fake_undo_btn.clicked.connect(self._undo_fake_segment)
+        self.fake_export_btn.clicked.connect(self._export_fake_frames_csv)
+        self.fake_status_label = QtWidgets.QLabel("Fake片段：0 段")
+        self.fake_status_label.setProperty("metricValue", True)
+        fake_row.addWidget(self.fake_status_label, 1)
+        layout.addLayout(fake_row)
         return panel
 
     def _build_sidebar(self) -> QtWidgets.QWidget:
@@ -784,11 +1094,12 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         self.alignment_mode_group.setExclusive(True)
         # 互斥一步切换：点选即自动重估，不再需要“重新评估”按钮。
         self.mode_legacy_btn = QtWidgets.QPushButton("旧机制：足底贴地曲线互相关")
-        self.mode_dynamics_btn = QtWidgets.QPushButton("新机制：动力学 vGRF/BW")
+        self.mode_dynamics_btn = QtWidgets.QPushButton("新机制：触地事件对齐")
         for btn in (self.mode_legacy_btn, self.mode_dynamics_btn):
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
             btn.setMinimumHeight(34)
+            btn.setCursor(QtCore.Qt.PointingHandCursor)
         self.mode_legacy_btn.setChecked(True)
         self.alignment_mode_group.addButton(self.mode_legacy_btn, 0)
         self.alignment_mode_group.addButton(self.mode_dynamics_btn, 1)
@@ -796,6 +1107,7 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         self.mode_dynamics_btn.toggled.connect(self._on_alignment_mode_toggled)
         mode_layout.addWidget(self.mode_legacy_btn)
         mode_layout.addWidget(self.mode_dynamics_btn)
+        self._update_alignment_mode_button_styles()
         self.alignment_mode_hint = QtWidgets.QLabel("点选即自动对齐（无需再点重估）")
         self.alignment_mode_hint.setWordWrap(True)
         self.alignment_mode_hint.setProperty("metricValue", True)
@@ -861,22 +1173,25 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         self._manual_adjusted = False
         self._visual_prior_source = None
         self._dynamics_curves = None
+        self._fake_segments = []
+        self._pending_fake_start = None
         self._set_controls_enabled(False)
-        for checkbox in (self.mocap_left_check, self.mocap_right_check, self.pressure_left_check, self.pressure_right_check):
-            checkbox.blockSignals(True)
-            checkbox.setChecked(True)
-            checkbox.blockSignals(False)
+        if hasattr(self, "fake_status_label"):
+            self.fake_status_label.setText("Fake片段：0 段")
+        # Keep L/R (and dynamics) curve checkbox state across trial switches.
         self.left_foot_canvas.set_values(None)
         self.right_foot_canvas.set_values(None)
         self.motion_canvas.set_motion(None)
         if hasattr(self, "curve_canvas"):
-            self.curve_canvas.set_series_visibility(
-                mocap_left=True,
-                mocap_right=True,
-                pressure_left=True,
-                pressure_right=True,
+            self._apply_curve_series_visibility()
+            self.curve_canvas.render(
+                None,
+                None,
+                0.0,
+                0.0,
+                mode=self._current_alignment_mode(),
+                dynamics=None,
             )
-        self.curve_canvas.render(None, None, 0.0, 0.0)
         self.session_row.set_value("--")
         self.source_row.set_value("--")
         self.coarse_row.set_value("--")
@@ -895,6 +1210,14 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         self.delta_spin.setEnabled(enabled)
         for button in (self.delta_minus_10, self.delta_minus_1, self.delta_plus_1, self.delta_plus_10):
             button.setEnabled(enabled)
+        for button in (
+            getattr(self, "fake_start_btn", None),
+            getattr(self, "fake_end_btn", None),
+            getattr(self, "fake_undo_btn", None),
+            getattr(self, "fake_export_btn", None),
+        ):
+            if button is not None:
+                button.setEnabled(enabled)
 
     def set_session_context(self, session: SessionData | None, *, force: bool = False) -> None:
         if session is None:
@@ -919,6 +1242,7 @@ class PressureAlignmentPage(QtWidgets.QWidget):
                 self._delta_t2,
                 mode=self._current_alignment_mode(),
                 dynamics=self._dynamics_curves,
+                **self._fake_render_args(),
             )
 
     def _set_play_button_state(self, playing: bool) -> None:
@@ -986,6 +1310,240 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         duration = self._playback_duration()
         next_time = self._preview_time + frame_count / fps
         self.set_preview_time(max(0.0, min(next_time, duration)))
+
+    def _fake_render_args(self) -> dict:
+        pending_t = None
+        if self._pending_fake_start is not None:
+            pending_t = float(self._pending_fake_start.get("preview_time_s", 0.0))
+        return {
+            "fake_segments": list(self._fake_segments),
+            "pending_fake_start": pending_t,
+        }
+
+    def _update_fake_status_label(self) -> None:
+        if not hasattr(self, "fake_status_label"):
+            return
+        n = len(self._fake_segments)
+        if self._pending_fake_start is None:
+            self.fake_status_label.setText(f"Fake片段：{n} 段")
+        else:
+            t0 = float(self._pending_fake_start.get("preview_time_s", 0.0))
+            left_f = self._pending_fake_start.get("left_frame_idx", "?")
+            self.fake_status_label.setText(
+                f"Fake片段：{n} 段 | 待定起点 t={t0:.3f}s L#{left_f}"
+            )
+
+    @staticmethod
+    def _nearest_frame_index(time_s: np.ndarray | None, target_t: float) -> int | None:
+        if time_s is None:
+            return None
+        arr = np.asarray(time_s, dtype=np.float64)
+        if len(arr) == 0:
+            return None
+        return int(np.argmin(np.abs(arr - float(target_t))))
+
+    def _current_fake_mark_info(self) -> dict | None:
+        """Snapshot current playhead mapped onto left/right tactile frames.
+
+        Left foot is the discrete time base. Right foot uses the nearest frame
+        to the same absolute time on the shared pressure timeline.
+        """
+        if self._pressure_left is None or len(self._pressure_left.time_s) == 0:
+            return None
+        preview_t = float(self._preview_time)
+        left_idx = self._nearest_frame_index(self._pressure_left.time_s, preview_t)
+        if left_idx is None:
+            return None
+        left_t = float(self._pressure_left.time_s[left_idx])
+        right_idx = None
+        right_t = None
+        if self._pressure_right is not None and len(self._pressure_right.time_s):
+            right_idx = self._nearest_frame_index(self._pressure_right.time_s, left_t)
+            if right_idx is not None:
+                right_t = float(self._pressure_right.time_s[right_idx])
+        return {
+            "preview_time_s": preview_t,
+            "left_frame_idx": int(left_idx),
+            "left_time_s": left_t,
+            "right_frame_idx": int(right_idx) if right_idx is not None else "",
+            "right_time_s": right_t if right_t is not None else "",
+            "delta_t2": float(self._delta_t2),
+            "session_id": self._session.session_id if self._session is not None else "",
+        }
+
+    def _record_fake_start(self) -> None:
+        info = self._current_fake_mark_info()
+        if info is None:
+            QtWidgets.QMessageBox.warning(self, "无法记录", "请先加载左脚触觉数据后再记录 Fake 起点。")
+            return
+        self._pending_fake_start = info
+        self._update_fake_status_label()
+        self._log(
+            f"[Fake起点] 待定段#{len(self._fake_segments) + 1} | "
+            f"t={info['preview_time_s']:.3f}s | L#{info['left_frame_idx']} ({info['left_time_s']:.3f}s) | "
+            f"R#{info['right_frame_idx']} ({info['right_time_s'] if info['right_time_s'] != '' else 'NA'})"
+        )
+        self._refresh_views()
+
+    def _record_fake_end(self) -> None:
+        if self._pending_fake_start is None:
+            QtWidgets.QMessageBox.warning(self, "无法记录", "请先记录 Fake 起点。")
+            return
+        info = self._current_fake_mark_info()
+        if info is None:
+            QtWidgets.QMessageBox.warning(self, "无法记录", "请先加载左脚触觉数据后再记录 Fake 终点。")
+            return
+        start = self._pending_fake_start
+        end = info
+        # Normalize order so start_time <= end_time while keeping endpoint metadata.
+        if float(end["left_frame_idx"]) < float(start["left_frame_idx"]):
+            start, end = end, start
+        segment = {
+            "segment_id": len(self._fake_segments) + 1,
+            "start_time_s": float(start["preview_time_s"]),
+            "end_time_s": float(end["preview_time_s"]),
+            "start_left_frame_idx": int(start["left_frame_idx"]),
+            "end_left_frame_idx": int(end["left_frame_idx"]),
+            "start_left_time_s": float(start["left_time_s"]),
+            "end_left_time_s": float(end["left_time_s"]),
+            "start_right_frame_idx": start["right_frame_idx"],
+            "end_right_frame_idx": end["right_frame_idx"],
+            "start_right_time_s": start["right_time_s"],
+            "end_right_time_s": end["right_time_s"],
+            "delta_t2": float(self._delta_t2),
+            "session_id": self._session.session_id if self._session is not None else "",
+        }
+        self._fake_segments.append(segment)
+        self._pending_fake_start = None
+        self._update_fake_status_label()
+        self._log(
+            f"[Fake终点] 完成段#{segment['segment_id']} | "
+            f"L#{segment['start_left_frame_idx']}→#{segment['end_left_frame_idx']} | "
+            f"t={segment['start_time_s']:.3f}→{segment['end_time_s']:.3f}s"
+        )
+        self._refresh_views()
+
+    def _undo_fake_segment(self) -> None:
+        if self._pending_fake_start is not None:
+            self._pending_fake_start = None
+            self._update_fake_status_label()
+            self._log("已取消待定 Fake 起点")
+            self._refresh_views()
+            return
+        if not self._fake_segments:
+            self._log("没有可撤销的 Fake 片段")
+            return
+        removed = self._fake_segments.pop()
+        # reindex
+        for i, seg in enumerate(self._fake_segments, start=1):
+            seg["segment_id"] = i
+        self._update_fake_status_label()
+        self._log(f"已撤销 Fake 段#{removed.get('segment_id')}")
+        self._refresh_views()
+
+    def _export_fake_frames_csv(self) -> None:
+        if not self._fake_segments:
+            QtWidgets.QMessageBox.warning(self, "无法导出", "请至少完成一段 Fake 起点+终点标记。")
+            return
+        if self._pressure_left is None or len(self._pressure_left.time_s) == 0:
+            QtWidgets.QMessageBox.warning(self, "无法导出", "当前没有左脚触觉帧数据。")
+            return
+
+        session_id = self._session.session_id if self._session is not None else "unknown"
+        # Compact trial code like visual export: S5_1 -> S501? Actually visual uses S + num + trial.
+        trial_code = session_id
+        match = re.match(r"S(\d+)_(\d+)", session_id)
+        if match:
+            # Keep readable compact form S{subject}{trial} without forcing 2-digit action.
+            trial_code = f"S{match.group(1)}{match.group(2)}"
+        else:
+            trial_code = re.sub(r"[^0-9A-Za-z_-]+", "_", session_id)
+
+        out_dir = DEFAULT_OUTPUT_ROOT / "fake_tactile_csv"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        default_path = str(out_dir / f"{trial_code}_fake_frames.csv")
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "导出 Fake 帧 CSV",
+            default_path,
+            "CSV 文件 (*.csv);;所有文件 (*)",
+        )
+        if not path:
+            return
+
+        left_times = np.asarray(self._pressure_left.time_s, dtype=np.float64)
+        right_times = (
+            np.asarray(self._pressure_right.time_s, dtype=np.float64)
+            if self._pressure_right is not None and len(self._pressure_right.time_s)
+            else np.zeros(0, dtype=np.float64)
+        )
+
+        # Inclusive left-frame coverage; right foot = nearest frame to left time.
+        fake_left_to_seg: dict[int, int] = {}
+        for seg in self._fake_segments:
+            a = int(seg["start_left_frame_idx"])
+            b = int(seg["end_left_frame_idx"])
+            lo, hi = (a, b) if a <= b else (b, a)
+            lo = max(0, lo)
+            hi = min(len(left_times) - 1, hi)
+            for idx in range(lo, hi + 1):
+                fake_left_to_seg.setdefault(idx, int(seg["segment_id"]))
+
+        header = [
+            "segment_id",
+            "left_frame_idx",
+            "left_time_s",
+            "right_frame_idx",
+            "right_time_s",
+        ]
+        rows: list[list[object]] = [header]
+        for left_idx in sorted(fake_left_to_seg):
+            left_t = float(left_times[left_idx])
+            if len(right_times):
+                right_idx = int(np.argmin(np.abs(right_times - left_t)))
+                right_t = f"{float(right_times[right_idx]):.6f}"
+            else:
+                right_idx = ""
+                right_t = ""
+            rows.append([
+                fake_left_to_seg[left_idx],
+                left_idx,
+                f"{left_t:.6f}",
+                right_idx,
+                right_t,
+            ])
+
+        with open(path, "w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.writer(handle)
+            writer.writerows(rows)
+
+        self._log(f"??? Fake ? CSV?{path} | segments={len(self._fake_segments)} frames={len(fake_left_to_seg)}")
+        QtWidgets.QMessageBox.information(
+            self,
+            "????",
+            f"??? {len(self._fake_segments)} ? Fake ???? {len(fake_left_to_seg)} ??\n{path}",
+        )
+    def _on_curve_clicked(self, x_value: float) -> None:
+        """Move the preview playhead by clicking/dragging the alignment curve."""
+        if self._session is None and self._pressure is None and self._mocap is None:
+            return
+        self.stop_playback()
+        duration = self._playback_duration()
+        if duration <= 0.0:
+            try:
+                _x0, x1 = self.curve_canvas.ax.get_xlim()
+                duration = max(float(x1), 0.0)
+            except Exception:
+                duration = 0.0
+        x_value = float(x_value)
+        if duration > 0.0:
+            x_value = max(0.0, min(x_value, duration))
+        else:
+            x_value = max(0.0, x_value)
+        fps = self._playback_fps()
+        if fps > 0:
+            x_value = round(x_value * fps) / fps
+        self.set_preview_time(x_value)
 
     def _resolve_session_paths(
         self,
@@ -1193,14 +1751,7 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         self._refresh_pressure_canvases()
         self._update_curve_selector_for_mode()
         if hasattr(self, "curve_canvas"):
-            self.curve_canvas.set_series_visibility(
-                mocap_left=self.mocap_left_check.isChecked(),
-                mocap_right=self.mocap_right_check.isChecked(),
-                pressure_left=self.pressure_left_check.isChecked(),
-                pressure_right=self.pressure_right_check.isChecked(),
-                mocap_vgrf=self.mocap_vgrf_check.isChecked() if hasattr(self, "mocap_vgrf_check") else True,
-                tactile_vgrf=self.tactile_vgrf_check.isChecked() if hasattr(self, "tactile_vgrf_check") else True,
-            )
+            self._apply_curve_series_visibility()
             self.curve_canvas.render(
                 self._mocap,
                 self._pressure,
@@ -1208,22 +1759,38 @@ class PressureAlignmentPage(QtWidgets.QWidget):
                 self._delta_t2,
                 mode=self._current_alignment_mode(),
                 dynamics=self._dynamics_curves,
+                **self._fake_render_args(),
             )
 
     def _refresh_pressure_canvases(self) -> None:
-        self.left_foot_canvas.set_values(_sample_pressure_values(self._pressure_left, self._preview_time))
-        self.right_foot_canvas.set_values(_sample_pressure_values(self._pressure_right, self._preview_time))
+        left_vals, left_valid = _sample_pressure_values(self._pressure_left, self._preview_time)
+        right_vals, right_valid = _sample_pressure_values(self._pressure_right, self._preview_time)
+        self.left_foot_canvas.set_values(left_vals, left_valid)
+        self.right_foot_canvas.set_values(right_vals, right_valid)
+
+    def _paired_left_visible(self) -> bool:
+        return bool(self.pair_left_check.isChecked()) if hasattr(self, "pair_left_check") else True
+
+    def _paired_right_visible(self) -> bool:
+        return bool(self.pair_right_check.isChecked()) if hasattr(self, "pair_right_check") else True
+
+    def _apply_curve_series_visibility(self) -> None:
+        if not hasattr(self, "curve_canvas"):
+            return
+        left_on = self._paired_left_visible()
+        right_on = self._paired_right_visible()
+        self.curve_canvas.set_series_visibility(
+            mocap_left=left_on,
+            mocap_right=right_on,
+            pressure_left=left_on,
+            pressure_right=right_on,
+            mocap_vgrf=self.mocap_vgrf_check.isChecked() if hasattr(self, "mocap_vgrf_check") else True,
+            tactile_vgrf=self.tactile_vgrf_check.isChecked() if hasattr(self, "tactile_vgrf_check") else True,
+        )
 
     def _on_curve_visibility_changed(self) -> None:
         if hasattr(self, "curve_canvas"):
-            self.curve_canvas.set_series_visibility(
-                mocap_left=self.mocap_left_check.isChecked(),
-                mocap_right=self.mocap_right_check.isChecked(),
-                pressure_left=self.pressure_left_check.isChecked(),
-                pressure_right=self.pressure_right_check.isChecked(),
-                mocap_vgrf=self.mocap_vgrf_check.isChecked() if hasattr(self, "mocap_vgrf_check") else True,
-                tactile_vgrf=self.tactile_vgrf_check.isChecked() if hasattr(self, "tactile_vgrf_check") else True,
-            )
+            self._apply_curve_series_visibility()
             self.curve_canvas.render(
                 self._mocap,
                 self._pressure,
@@ -1231,6 +1798,7 @@ class PressureAlignmentPage(QtWidgets.QWidget):
                 self._delta_t2,
                 mode=self._current_alignment_mode(),
                 dynamics=self._dynamics_curves,
+                **self._fake_render_args(),
             )
 
     def _delta_step(self, frames: int) -> None:
@@ -1245,17 +1813,17 @@ class PressureAlignmentPage(QtWidgets.QWidget):
 
     def _update_curve_selector_for_mode(self) -> None:
         dynamics = self._current_alignment_mode() == "dynamics"
-        for widget in (
-            self.mocap_left_check,
-            self.mocap_right_check,
-            self.pressure_left_check,
-            self.pressure_right_check,
-        ):
+        for widget in (self.pair_left_check, self.pair_right_check):
             widget.setVisible(not dynamics)
         if hasattr(self, "mocap_vgrf_check"):
             self.mocap_vgrf_check.setVisible(dynamics)
         if hasattr(self, "tactile_vgrf_check"):
             self.tactile_vgrf_check.setVisible(dynamics)
+        if hasattr(self, "curve_hint_label"):
+            if dynamics:
+                self.curve_hint_label.setText("新机制：两条总曲线")
+            else:
+                self.curve_hint_label.setText("旧机制：L/R 成对显示（触觉+动捕同步）")
 
     def _current_alignment_mode(self) -> str:
         if hasattr(self, "mode_dynamics_btn") and self.mode_dynamics_btn.isChecked():
@@ -1266,17 +1834,57 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         current = mode if mode is not None else self._current_alignment_mode()
         return "新机制" if current == "dynamics" else "旧机制"
 
+    def _update_alignment_mode_button_styles(self) -> None:
+        """Highlight the active alignment mechanism button."""
+        active = (
+            "QPushButton {"
+            "background-color: #C4553B;"
+            "color: #FFF8F1;"
+            "border: 1px solid #9E3F2A;"
+            "border-radius: 8px;"
+            "font-weight: 700;"
+            "padding: 8px 12px;"
+            "text-align: left;"
+            "}"
+            "QPushButton:hover { background-color: #B04831; }"
+            "QPushButton:pressed { background-color: #943C29; }"
+        )
+        idle = (
+            "QPushButton {"
+            "background-color: #F7EEE4;"
+            "color: #3A2F27;"
+            "border: 1px solid #D4BFAE;"
+            "border-radius: 8px;"
+            "font-weight: 600;"
+            "padding: 8px 12px;"
+            "text-align: left;"
+            "}"
+            "QPushButton:hover { background-color: #EFE0CF; border-color: #C9A98E; }"
+            "QPushButton:pressed { background-color: #E5D2BC; }"
+        )
+        if hasattr(self, "mode_legacy_btn"):
+            self.mode_legacy_btn.setStyleSheet(active if self.mode_legacy_btn.isChecked() else idle)
+        if hasattr(self, "mode_dynamics_btn"):
+            self.mode_dynamics_btn.setStyleSheet(active if self.mode_dynamics_btn.isChecked() else idle)
+
     def _on_alignment_mode_toggled(self, checked: bool) -> None:
+        # Always refresh styles so both checked/unchecked transitions update color.
+        self._update_alignment_mode_button_styles()
         # The exclusive button group emits once for the newly selected button.
         if not checked:
             return
         mode = self._current_alignment_mode()
         if mode == getattr(self, "_alignment_mode", None):
+            # Still force a redraw so residual twin-axis curves cannot linger.
+            self._update_curve_selector_for_mode()
+            self._refresh_views()
             return
         self._alignment_mode = mode
         self._update_curve_selector_for_mode()
         if self._session is None or self._pressure is None or self._meta is None:
             self._log(f"已切换到{self._alignment_mode_label(mode)}（加载数据后将自动对齐）")
+            if mode == "legacy":
+                self._dynamics_curves = None
             self._refresh_views()
             return
         self._log(f"切换到{self._alignment_mode_label(mode)}，自动重估对齐")
@@ -1322,18 +1930,16 @@ class PressureAlignmentPage(QtWidgets.QWidget):
                 pressure_time_s=pressure_time,
             )
             self._dynamics_curves = curves
-            m = np.asarray(curves.mocap_vgrf_bw, dtype=np.float64)
-            t = np.asarray(curves.tactile_vgrf_bw, dtype=np.float64)
-            lo = int(0.1 * len(m)) if len(m) else 0
-            hi = max(lo + 1, int(0.9 * len(m))) if len(m) else 0
+            note = getattr(curves, "event_note", "") or ""
+            scatter = getattr(curves, "event_scatter", float("nan"))
+            n_evt = int(getattr(curves, "event_n", 0) or 0)
+            ok = bool(getattr(curves, "event_ok", False))
             self._log(
-                "新机制曲线诊断: "
-                f"unit_scale={curves.length_scale_to_m:g} | n={len(m)} | fs={curves.sample_fps:.3f} | "
-                f"mocap full std={float(np.std(m)):.4f} ptp={float(np.ptp(m)):.4f} | "
-                f"mocap mid80 std={float(np.std(m[lo:hi])) if hi > lo else float('nan'):.4f} "
-                f"ptp={float(np.ptp(m[lo:hi])) if hi > lo else float('nan'):.4f} | "
-                f"tactile mid80 std={float(np.std(t[lo:hi])) if hi > lo else float('nan'):.4f} "
-                f"ptp={float(np.ptp(t[lo:hi])) if hi > lo else float('nan'):.4f}"
+                "新机制(触地事件): "
+                f"ok={ok} | n={n_evt} | scatter={scatter if scatter == scatter else float('nan'):.4f}s | "
+                f"unit_scale={curves.length_scale_to_m:g} | "
+                f"delta_t2={float(result.delta_t2):+.6f}s | t_coarse={float(result.t_coarse):+.6f}s"
+                + (f" | note={note}" if note else "")
             )
         else:
             if self._mocap is None:
@@ -1390,10 +1996,14 @@ class PressureAlignmentPage(QtWidgets.QWidget):
         if not folder:
             return
         root = Path(folder)
-        if not any(root.rglob("reconstruction_manifest.csv")) and not any(root.rglob("pressure_left_t*.csv")):
+        has_manifest = any(root.rglob("reconstruction_manifest.csv"))
+        has_legacy = any(root.rglob("pressure_left_t*.csv"))
+        has_continuous = any(root.rglob("pressure_left.csv")) and any(root.rglob("pressure_right.csv"))
+        if not has_manifest and not has_legacy and not has_continuous:
             self._set_status("所选文件夹中未找到重建触觉数据", "warning")
             self._log(
-                f"重建触觉导入失败：目录下没有 reconstruction_manifest.csv / pressure_left_t*.csv | {root}"
+                "重建触觉导入失败：目录下没有 reconstruction_manifest.csv / "
+                f"pressure_left.csv / pressure_left_t*.csv | {root}"
             )
             return
         self._reconstructed_root = root

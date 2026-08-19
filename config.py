@@ -11,8 +11,9 @@ DEFAULT_OUTPUT_ROOT = Path("sync/output")
 DEFAULT_CACHE_ROOT = Path("sync/cache")
 DEFAULT_VISUAL_ALIGN_REVIEW_ROOT = Path("E:/S13/AlignReviews_csv")
 DEFAULT_RECONSTRUCTED_TACTILE_ROOT = Path(
-    "PressureWasher/reconstructed_tactile_dataset/reconstruction_20260816_222245"
+    "E:/S13/reconstruction_20260817_020000"
 )
+DEFAULT_MISSING_PRESSURE_TABLE = Path("missing_pressure_objects.csv")
 
 DEFAULT_SOURCE_MODE = "auto"
 DEFAULT_AXIS_PRESET = "zup"

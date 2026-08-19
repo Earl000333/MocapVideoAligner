@@ -21,6 +21,9 @@ class PressureCurveSet:
     right_sum: np.ndarray
     source_path: Path
     sample_fps: float
+    # Optional per-sample validity aligned to time_s (1=valid/source, 0=reconstructed).
+    left_valid: np.ndarray | None = None
+    right_valid: np.ndarray | None = None
 
 
 @dataclass(frozen=True)
@@ -29,12 +32,22 @@ class PressureSensorFrameSet:
     sensor_values: np.ndarray
     source_path: Path
     sample_fps: float
+    # 1 = original/source frame, 0 = reconstructed/interpolated/resampled frame.
+    # None means the source did not provide valid_mask (treat all as valid).
+    valid_mask: np.ndarray | None = None
 
     @property
     def sensor_totals(self) -> np.ndarray:
         if len(self.sensor_values) == 0:
             return np.zeros(0, dtype=np.float64)
         return np.sum(self.sensor_values, axis=1)
+
+    def is_valid_at(self, index: int) -> bool:
+        if self.valid_mask is None or len(self.valid_mask) == 0:
+            return True
+        if index < 0 or index >= len(self.valid_mask):
+            return True
+        return bool(int(self.valid_mask[index]) != 0)
 
 
 @dataclass(frozen=True)
@@ -146,54 +159,11 @@ def load_pressure_curve_csv(csv_path: Path) -> PressureCurveSet:
 
 
 def load_pressure_sensor_csv(csv_path: Path) -> PressureSensorFrameSet:
-    rows = _read_csv_rows(csv_path)
-    if not rows:
-        raise ValueError(f"Pressure CSV is empty: {csv_path}")
-
-    fieldnames = list(rows[0].keys())
-    time_col = _find_column(fieldnames, ("t_us", "time_us", "timestamp_us", "time_s", "time"))
-    if time_col is None:
-        raise ValueError(f"Pressure sensor CSV must contain t_us or time_s: {csv_path}")
-
-    excluded = {
-        time_col,
-        "frame_idx",
-        "frame",
-        "idx",
-        "valid_mask",
-        "source_frame_idx",
-        "source_t_us",
-        "source_time_us",
-        "source_time_s",
-    }
-    sensor_cols = [name for name in fieldnames if name not in excluded]
-    if not sensor_cols:
-        raise ValueError(f"Pressure sensor CSV has no sensor columns: {csv_path}")
-
-    time_values: list[float] = []
-    sensor_rows: list[list[float]] = []
-    for row in rows:
-        try:
-            raw_time = float(row.get(time_col, "").strip())
-        except (TypeError, ValueError):
-            continue
-
-        values: list[float] = []
-        try:
-            for column in sensor_cols:
-                values.append(float(row.get(column, "").strip()))
-        except (TypeError, ValueError):
-            continue
-
-        time_values.append(raw_time / 1_000_000.0 if time_col.lower().endswith("us") else raw_time)
-        sensor_rows.append(values)
-
-    if not time_values:
-        raise ValueError(f"Pressure sensor CSV has no numeric rows: {csv_path}")
-
-    time_s = np.asarray(time_values, dtype=np.float64)
-    time_s = time_s - float(time_s[0])
-    sensor_values = np.asarray(sensor_rows, dtype=np.float64)
+    time_s, sensor_values, valid_mask = _load_pressure_sensor_rows(csv_path)
+    time_s = np.asarray(time_s, dtype=np.float64)
+    if len(time_s):
+        time_s = time_s - float(time_s[0])
+    sensor_values = np.asarray(sensor_values, dtype=np.float64)
     if len(sensor_values):
         max_value = float(np.max(sensor_values))
         if max_value > 0:
@@ -204,7 +174,35 @@ def load_pressure_sensor_csv(csv_path: Path) -> PressureSensorFrameSet:
         sensor_values=sensor_values,
         source_path=csv_path,
         sample_fps=sample_fps,
+        valid_mask=valid_mask,
     )
+
+
+
+def _nearest_valid_mask(
+    sample_times: np.ndarray,
+    source_times: np.ndarray,
+    source_mask: np.ndarray | None,
+) -> np.ndarray | None:
+    """Map source valid_mask onto sample_times by nearest neighbor."""
+    if source_mask is None:
+        return None
+    source_times = np.asarray(source_times, dtype=np.float64)
+    source_mask = np.asarray(source_mask)
+    sample_times = np.asarray(sample_times, dtype=np.float64)
+    if len(source_times) == 0 or len(source_mask) == 0 or len(sample_times) == 0:
+        return None
+    n = min(len(source_times), len(source_mask))
+    source_times = source_times[:n]
+    source_mask = source_mask[:n]
+    if n == 1:
+        return np.full(len(sample_times), int(source_mask[0]) != 0, dtype=np.int8)
+    idx = np.searchsorted(source_times, sample_times, side="left")
+    idx = np.clip(idx, 0, n - 1)
+    prev = np.clip(idx - 1, 0, n - 1)
+    choose_prev = np.abs(sample_times - source_times[prev]) <= np.abs(source_times[idx] - sample_times)
+    nearest = np.where(choose_prev, prev, idx)
+    return (np.asarray(source_mask[nearest]) != 0).astype(np.int8)
 
 
 def build_pressure_curve_set(
@@ -229,12 +227,16 @@ def build_pressure_curve_set(
     left_sum = np.interp(time_s, left.time_s, left_totals) if len(left.time_s) else np.zeros(sample_count, dtype=np.float64)
     right_sum = np.interp(time_s, right.time_s, right_totals) if len(right.time_s) else np.zeros(sample_count, dtype=np.float64)
     source_path = left.source_path.parent / "pressure_left+right.csv"
+    left_valid = _nearest_valid_mask(time_s, left.time_s, left.valid_mask)
+    right_valid = _nearest_valid_mask(time_s, right.time_s, right.valid_mask)
     return PressureCurveSet(
         time_s=time_s,
         left_sum=_norm01(left_sum),
         right_sum=_norm01(right_sum),
         source_path=source_path,
         sample_fps=fps,
+        left_valid=left_valid,
+        right_valid=right_valid,
     )
 
 
@@ -632,9 +634,10 @@ def resolve_reconstructed_rec_dir(
             for suffix in suffixes:
                 suffix_lower = suffix.lower()
                 if name_lower.endswith(f"_{suffix_lower}") or name_lower == suffix_lower:
+                    continuous = (path / "pressure_left.csv").exists() and (path / "pressure_right.csv").exists()
                     left_hits = list(path.glob("pressure_left_t*.csv"))
                     right_hits = list(path.glob("pressure_right_t*.csv"))
-                    if left_hits and right_hits:
+                    if continuous or (left_hits and right_hits):
                         matches.append(path)
                         break
 
@@ -645,15 +648,32 @@ def resolve_reconstructed_rec_dir(
     return matches[0]
 
 
+def _segment_name_from_manifest_row(row: dict[str, str]) -> str:
+    for key in ("segment_name", "name"):
+        value = str(row.get(key, "")).strip()
+        if not value:
+            continue
+        block_type = str(row.get("block_type", "")).strip().lower()
+        # New format uses block_type=segment/bridge/resample with a shared name field.
+        if block_type and block_type not in {"segment", ""}:
+            continue
+        return value
+    return ""
+
+
 def list_reconstructed_segments(rec_dir: Path) -> list[str]:
     rec_dir = Path(rec_dir)
+    # New continuous format has one left/right CSV; no per-segment files to list.
+    if (rec_dir / "pressure_left.csv").exists() or (rec_dir / "pressure_right.csv").exists():
+        return []
+
     manifest_path = rec_dir / "reconstruction_manifest.csv"
     segments: list[str] = []
     if manifest_path.exists():
         rows = _read_csv_rows(manifest_path)
         for row in rows:
-            name = str(row.get("segment_name", "")).strip()
-            if name:
+            name = _segment_name_from_manifest_row(row)
+            if name and name not in segments:
                 segments.append(name)
     if segments:
         return segments
@@ -693,8 +713,21 @@ def _segment_csv_path(rec_dir: Path, side: str, segment: str) -> Path | None:
     return None
 
 
-def _load_pressure_sensor_rows(csv_path: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Load absolute times (seconds) and sensor matrix without rezero/normalization."""
+def _parse_valid_mask_value(raw: object) -> int:
+    text = str(raw if raw is not None else "").strip()
+    if not text:
+        return 1
+    try:
+        return 0 if float(text) == 0.0 else 1
+    except (TypeError, ValueError):
+        lowered = text.lower()
+        if lowered in {"0", "false", "f", "no", "n", "invalid"}:
+            return 0
+        return 1
+
+
+def _load_pressure_sensor_rows(csv_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    """Load absolute times (seconds), sensor matrix, and optional valid_mask."""
     rows = _read_csv_rows(csv_path)
     if not rows:
         raise ValueError(f"Pressure CSV is empty: {csv_path}")
@@ -704,12 +737,15 @@ def _load_pressure_sensor_rows(csv_path: Path) -> tuple[np.ndarray, np.ndarray]:
     if time_col is None:
         raise ValueError(f"Pressure sensor CSV must contain t_us or time_s: {csv_path}")
 
+    valid_col = _find_column(fieldnames, ("valid_mask", "valid", "is_valid"))
     excluded = {
         time_col,
         "frame_idx",
         "frame",
         "idx",
         "valid_mask",
+        "valid",
+        "is_valid",
         "source_frame_idx",
         "source_t_us",
         "source_time_us",
@@ -721,6 +757,7 @@ def _load_pressure_sensor_rows(csv_path: Path) -> tuple[np.ndarray, np.ndarray]:
 
     time_values: list[float] = []
     sensor_rows: list[list[float]] = []
+    valid_values: list[int] = []
     for row in rows:
         try:
             raw_time = float(str(row.get(time_col, "")).strip())
@@ -734,13 +771,17 @@ def _load_pressure_sensor_rows(csv_path: Path) -> tuple[np.ndarray, np.ndarray]:
             continue
         time_values.append(raw_time / 1_000_000.0 if time_col.lower().endswith("us") else raw_time)
         sensor_rows.append(values)
+        if valid_col is not None:
+            valid_values.append(_parse_valid_mask_value(row.get(valid_col, "1")))
 
     if not time_values:
         raise ValueError(f"Pressure sensor CSV has no numeric rows: {csv_path}")
 
+    valid_mask = np.asarray(valid_values, dtype=np.int8) if valid_col is not None else None
     return (
         np.asarray(time_values, dtype=np.float64),
         np.asarray(sensor_rows, dtype=np.float64),
+        valid_mask,
     )
 
 
@@ -751,6 +792,7 @@ def _finalize_sensor_frames(
     *,
     rezero: bool = True,
     normalize: bool = True,
+    valid_mask: np.ndarray | None = None,
 ) -> PressureSensorFrameSet:
     time_s = np.asarray(time_s, dtype=np.float64)
     sensor_values = np.asarray(sensor_values, dtype=np.float64)
@@ -760,12 +802,82 @@ def _finalize_sensor_frames(
         max_value = float(np.max(sensor_values))
         if max_value > 0:
             sensor_values = np.clip(sensor_values / max_value, 0.0, 1.0)
+    mask = None
+    if valid_mask is not None:
+        mask = np.asarray(valid_mask, dtype=np.int8)
+        if len(mask) != len(time_s):
+            # Keep shape consistent; default missing tail entries to valid.
+            fixed = np.ones(len(time_s), dtype=np.int8)
+            n = min(len(fixed), len(mask))
+            if n:
+                fixed[:n] = mask[:n]
+            mask = fixed
     return PressureSensorFrameSet(
         time_s=time_s,
         sensor_values=sensor_values,
         source_path=source_path,
         sample_fps=_infer_fps(time_s),
+        valid_mask=mask,
     )
+
+
+def _load_one_reconstructed_side(
+    rec_dir: Path,
+    side: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, Path] | None:
+    """Load one foot from new continuous CSV or legacy per-segment CSVs.
+
+    Returns None when this side has no usable samples (including header-only CSV).
+    """
+    rec_dir = Path(rec_dir)
+    continuous_path = rec_dir / f"pressure_{side}.csv"
+    if continuous_path.exists():
+        try:
+            t_arr, v_arr, mask = _load_pressure_sensor_rows(continuous_path)
+        except ValueError as exc:
+            # Header-only continuous CSVs mean this side is missing.
+            if "empty" in str(exc).lower() or "no numeric rows" in str(exc).lower():
+                return None
+            raise
+        if len(t_arr) == 0:
+            return None
+        return t_arr, v_arr, mask, continuous_path
+
+    segments = list_reconstructed_segments(rec_dir)
+    if not segments:
+        return None
+
+    times: list[np.ndarray] = []
+    values: list[np.ndarray] = []
+    masks: list[np.ndarray] = []
+    has_mask = False
+    source: Path | None = None
+    for segment in segments:
+        path = _segment_csv_path(rec_dir, side, segment)
+        if path is None:
+            continue
+        try:
+            t_arr, v_arr, mask = _load_pressure_sensor_rows(path)
+        except ValueError as exc:
+            # Some reconstructed segments are header-only / zero-row.
+            if "empty" in str(exc).lower() or "no numeric rows" in str(exc).lower():
+                continue
+            raise
+        if len(t_arr) == 0:
+            continue
+        times.append(t_arr)
+        values.append(v_arr)
+        if mask is None:
+            masks.append(np.ones(len(t_arr), dtype=np.int8))
+        else:
+            has_mask = True
+            masks.append(np.asarray(mask, dtype=np.int8))
+        source = path
+
+    if not times or source is None:
+        return None
+    mask_out = np.concatenate(masks) if has_mask else None
+    return np.concatenate(times), np.vstack(values), mask_out, source
 
 
 def load_reconstructed_pressure_sensors(
@@ -773,73 +885,42 @@ def load_reconstructed_pressure_sensors(
 ) -> tuple[PressureSensorFrameSet, PressureSensorFrameSet]:
     """Load reconstructed left/right sensor streams for one rec... directory.
 
-    All segments listed in reconstruction_manifest.csv (or discovered by glob)
-    are concatenated in segment order using absolute t_us timelines.
+    Supports:
+      - new continuous format: pressure_left.csv / pressure_right.csv (+ manifest)
+      - legacy segment format: pressure_*_t*.csv concatenated by absolute t_us
+
+    Both sides must contain at least one numeric frame. One-sided empty
+    continuous CSVs are treated as missing tactile data and rejected.
     """
     rec_dir = Path(rec_dir)
     if not rec_dir.exists() or not rec_dir.is_dir():
         raise FileNotFoundError(f"Reconstructed tactile directory does not exist: {rec_dir}")
 
-    segments = list_reconstructed_segments(rec_dir)
-    if not segments:
-        raise FileNotFoundError(f"No reconstructed pressure segments found in {rec_dir}")
-
-    left_times: list[np.ndarray] = []
-    left_values: list[np.ndarray] = []
-    right_times: list[np.ndarray] = []
-    right_values: list[np.ndarray] = []
-    left_source: Path | None = None
-    right_source: Path | None = None
-
-    for segment in segments:
-        left_path = _segment_csv_path(rec_dir, "left", segment)
-        right_path = _segment_csv_path(rec_dir, "right", segment)
-        if left_path is not None:
-            try:
-                t_arr, v_arr = _load_pressure_sensor_rows(left_path)
-            except ValueError as exc:
-                # Some reconstructed segments are header-only / zero-row.
-                if "empty" in str(exc).lower() or "no numeric rows" in str(exc).lower():
-                    pass
-                else:
-                    raise
-            else:
-                if len(t_arr) > 0:
-                    left_times.append(t_arr)
-                    left_values.append(v_arr)
-                    left_source = left_path
-        if right_path is not None:
-            try:
-                t_arr, v_arr = _load_pressure_sensor_rows(right_path)
-            except ValueError as exc:
-                if "empty" in str(exc).lower() or "no numeric rows" in str(exc).lower():
-                    pass
-                else:
-                    raise
-            else:
-                if len(t_arr) > 0:
-                    right_times.append(t_arr)
-                    right_values.append(v_arr)
-                    right_source = right_path
-
-    if not left_times or not right_times:
+    left_pack = _load_one_reconstructed_side(rec_dir, "left")
+    right_pack = _load_one_reconstructed_side(rec_dir, "right")
+    if left_pack is None or right_pack is None:
+        missing = []
+        if left_pack is None:
+            missing.append("left")
+        if right_pack is None:
+            missing.append("right")
         raise FileNotFoundError(
-            f"Reconstructed tactile directory is missing left/right segment CSVs: {rec_dir}"
+            f"Reconstructed tactile directory is missing usable pressure samples "
+            f"({', '.join(missing)}): {rec_dir}"
         )
 
-    left_time = np.concatenate(left_times)
-    left_mat = np.vstack(left_values)
-    right_time = np.concatenate(right_times)
-    right_mat = np.vstack(right_values)
+    left_time, left_mat, left_mask, left_source = left_pack
+    right_time, right_mat, right_mask, right_source = right_pack
 
     # Preserve left/right relative timing by rezeroing both to the earlier foot start.
-    origin = float(min(left_time[0], right_time[0]))
+    origin = float(min(float(left_time[0]), float(right_time[0])))
     left = _finalize_sensor_frames(
         left_time - origin,
         left_mat,
         left_source if left_source is not None else rec_dir / "pressure_left_reconstructed.csv",
         rezero=False,
         normalize=True,
+        valid_mask=left_mask,
     )
     right = _finalize_sensor_frames(
         right_time - origin,
@@ -847,8 +928,173 @@ def load_reconstructed_pressure_sensors(
         right_source if right_source is not None else rec_dir / "pressure_right_reconstructed.csv",
         rezero=False,
         normalize=True,
+        valid_mask=right_mask,
     )
     return left, right
+
+
+def trial_dataset_id(session_or_trial_id: str | None) -> str:
+    """Normalize session/trial identifiers to missing-table dataset_id form.
+
+    Examples:
+      S1301_2 -> S13012
+      S13012  -> S13012
+      rec20260810_205547_demo_S1301_2 -> S13012
+    """
+    if not session_or_trial_id:
+        return ""
+    text = str(session_or_trial_id).strip()
+    if not text:
+        return ""
+    # Prefer the trailing trial token (S###_##_# / S######) so long rec folder
+    # names do not collapse into REC...S13012.
+    match = re.search(r"(S\d+(?:_\d+){0,2})$", text, flags=re.IGNORECASE)
+    if match:
+        return re.sub(r"[^0-9A-Za-z]+", "", match.group(1)).upper()
+    match = re.search(r"(S\d+(?:_\d+){0,2})", text, flags=re.IGNORECASE)
+    if match:
+        return re.sub(r"[^0-9A-Za-z]+", "", match.group(1)).upper()
+    compact = re.sub(r"[^0-9A-Za-z]+", "", text).upper()
+    # Fallback: extract last S#### token from mixed rec strings.
+    tail = re.search(r"(S\d{3,})$", compact, flags=re.IGNORECASE)
+    if tail:
+        return tail.group(1).upper()
+    return compact
+
+
+def reconstructed_trial_dataset_id(rec_dir_name: str | None) -> str:
+    """Extract compact dataset_id from a reconstructed rec... directory name."""
+    return trial_dataset_id(rec_dir_name)
+
+
+def load_pressure_quality_classes(
+    csv_path: Path | None,
+) -> dict[str, str]:
+    """Load dataset_id -> quality_class from missing_pressure_objects.csv."""
+    if csv_path is None:
+        return {}
+    path = Path(csv_path)
+    if not path.exists() or not path.is_file():
+        return {}
+
+    classes: dict[str, str] = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            dataset_id = trial_dataset_id(row.get("dataset_id", ""))
+            quality = str(row.get("quality_class", "")).strip().upper()
+            if not dataset_id or not quality:
+                continue
+            classes[dataset_id] = quality
+    return classes
+
+
+def load_pressure_quality_skip_ids(
+    csv_path: Path | None,
+    *,
+    skip_classes: tuple[str, ...] = ("C", "D"),
+) -> set[str]:
+    """Load dataset_id values that should be skipped during trial navigation.
+
+    `missing_pressure_objects.csv` quality classes:
+      C = tactile missing (single-foot / incomplete)
+      D = session not recorded
+    """
+    classes = load_pressure_quality_classes(csv_path)
+    skip = {str(item).strip().upper() for item in skip_classes if str(item).strip()}
+    return {dataset_id for dataset_id, quality in classes.items() if quality in skip}
+
+
+def _csv_has_numeric_pressure_rows(csv_path: Path) -> bool:
+    """True when a reconstructed pressure CSV has at least one numeric data row."""
+    path = Path(csv_path)
+    if not path.exists() or not path.is_file():
+        return False
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as handle:
+            # Skip header; any following non-empty line counts as data.
+            header = handle.readline()
+            if not header:
+                return False
+            for line in handle:
+                if line.strip():
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def scan_reconstructed_missing_side_ids(
+    reconstruction_root: Path | None,
+) -> dict[str, str]:
+    """Detect reconstructed sessions with missing left/right samples.
+
+    Returns dataset_id -> reason label:
+      C = one/both continuous pressure CSVs are empty or missing samples
+    """
+    if reconstruction_root is None:
+        return {}
+    root = Path(reconstruction_root)
+    if not root.exists() or not root.is_dir():
+        return {}
+
+    missing: dict[str, str] = {}
+    for manifest in root.rglob("reconstruction_manifest.csv"):
+        rec_dir = manifest.parent
+        dataset_id = reconstructed_trial_dataset_id(rec_dir.name)
+        if not dataset_id:
+            continue
+
+        left_path = rec_dir / "pressure_left.csv"
+        right_path = rec_dir / "pressure_right.csv"
+        has_continuous = left_path.exists() or right_path.exists()
+        if has_continuous:
+            left_ok = _csv_has_numeric_pressure_rows(left_path)
+            right_ok = _csv_has_numeric_pressure_rows(right_path)
+            if not left_ok or not right_ok:
+                missing[dataset_id] = "C"
+            continue
+
+        # Legacy segment format: require at least one left and right segment CSV with rows.
+        left_hits = list(rec_dir.glob("pressure_left_t*.csv"))
+        right_hits = list(rec_dir.glob("pressure_right_t*.csv"))
+        left_ok = any(_csv_has_numeric_pressure_rows(path) for path in left_hits)
+        right_ok = any(_csv_has_numeric_pressure_rows(path) for path in right_hits)
+        if not left_ok or not right_ok:
+            missing[dataset_id] = "C"
+    return missing
+
+
+def build_pressure_skip_index(
+    *,
+    quality_table: Path | None,
+    reconstruction_root: Path | None = None,
+    skip_classes: tuple[str, ...] = ("C", "D"),
+) -> tuple[set[str], dict[str, str]]:
+    """Combine quality-table C/D and reconstructed empty-side detections.
+
+    Returns:
+      skip_ids: dataset ids that navigation should skip
+      labels: dataset_id -> display quality label (C/D, or C from recon scan)
+    """
+    labels = load_pressure_quality_classes(quality_table)
+    skip_ids = {
+        dataset_id
+        for dataset_id, quality in labels.items()
+        if quality in {str(item).strip().upper() for item in skip_classes}
+    }
+
+    recon_missing = scan_reconstructed_missing_side_ids(reconstruction_root)
+    for dataset_id, quality in recon_missing.items():
+        # Recon empty-side always counts as skippable tactile missing.
+        labels.setdefault(dataset_id, quality)
+        # If table says A/B but recon side is empty, force skip as C.
+        if labels.get(dataset_id, quality) not in {"C", "D"}:
+            labels[dataset_id] = "C"
+        skip_ids.add(dataset_id)
+        if labels[dataset_id] not in {"C", "D"}:
+            labels[dataset_id] = "C"
+    return skip_ids, labels
 
 
 def build_pressure_aligned_curve_matrix(

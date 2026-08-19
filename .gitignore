@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -17,7 +17,27 @@ htmlcov/
 # Runtime outputs and cache
 sync/cache/
 sync/output/
+sync/_tmp_*/
+sync/_tmp_*.py
 backup/
+output/
+outputs/
+results/
+result/
+cache/
+logs/
+tmp/
+temp/
+*.log
+*.npy
+*.npz
+*.pkl
+*.h5
+*.mat
+*.csv
+*.png
+*.jpg
+*.jpeg
 
 # IDE and OS files
 .idea/
@@ -35,3 +55,6 @@ Thumbs.db
 *.avi
 *.mov
 *.mkv
+
+# External/local add-on trees (not part of this repo)
+add/

@@ -39,6 +39,8 @@ from utils.alignment import estimate_initial_offset, preview_time_to_bvh_frame, 
 from utils.bvh_pose import compute_joint_positions, transform_display_positions
 from utils.energy import build_combined_camera_energy, norm01
 from utils.exporter import export_alignment_bundle
+from config import DEFAULT_MISSING_PRESSURE_TABLE, DEFAULT_RECONSTRUCTED_TACTILE_ROOT
+from utils.pressure_alignment import build_pressure_skip_index, trial_dataset_id
 from utils.session import close_session_data, enumerate_trials, load_session_from_paths, load_trial
 
 
@@ -355,6 +357,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._trial_list: list[TrialInfo] = [] if self._use_explicit_paths else enumerate_trials(self.mocap_root, self.cam_root)
         self._trial_index: int = 0
+        self._pressure_skip_ids: set[str] = set()
+        self._pressure_quality_labels: dict[str, str] = {}
+        self._refresh_pressure_skip_index()
 
         self.body_splitter: QtWidgets.QSplitter | None = None
         self.workspace_splitter: QtWidgets.QSplitter | None = None
@@ -876,6 +881,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.auto_button.clicked.connect(self.auto_align)
         self.export_button.clicked.connect(self.export_current_result)
 
+        self._wrap_pressure_page_root_import()
         self.prev_button.clicked.connect(self.navigate_prev)
         self.next_button.clicked.connect(self.navigate_next)
         self.pick_trial_button.clicked.connect(self.choose_trial)
@@ -974,6 +980,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._use_explicit_paths:
             return
 
+        self._refresh_pressure_skip_index()
         self._trial_list = enumerate_trials(self.mocap_root, self.cam_root)
         if self._trial_list:
             self._trial_index = min(self._trial_index, len(self._trial_list) - 1)
@@ -1061,6 +1068,11 @@ class MainWindow(QtWidgets.QMainWindow):
         trial = self._trial_list[self._trial_index]
         total = len(self._trial_list)
         self.trial_info_label.setText(f"[{self._trial_index + 1}/{total}] {trial.display_name}")
+        quality = self._pressure_quality_label(trial)
+        quality_note = f"\n质量标记：{quality}（不可统计，导航将跳过）" if quality in {"C", "D"} else ""
+        skip_note = ""
+        if self._pressure_skip_ids:
+            skip_note = f"\n跳过列表：C/D 共 {len(self._pressure_skip_ids)} 个 dataset_id"
         self.nav_trial_label.setText(
             f"试次序号：{self._trial_index + 1} / {total}\n"
             f"实验对象：{trial.subject}\n"
@@ -1068,23 +1080,117 @@ class MainWindow(QtWidgets.QMainWindow):
             f"重复次数：第 {trial.rep} 次\n"
             f"动捕文件夹：{trial.mocap_folder_name}\n"
             f"相机会话标识：{trial.cam_session_suffix}"
+            f"{quality_note}{skip_note}"
         )
-        self.prev_button.setEnabled(self._trial_index > 0)
-        self.next_button.setEnabled(self._trial_index < total - 1)
+        self.prev_button.setEnabled(self._find_navigable_trial_index(self._trial_index - 1, step=-1) is not None)
+        self.next_button.setEnabled(self._find_navigable_trial_index(self._trial_index + 1, step=1) is not None)
         self.pick_trial_button.setEnabled(total > 0)
         self._update_root_button_state()
 
-    def navigate_prev(self) -> None:
-        if self._trial_index > 0:
-            self._trial_index -= 1
+    def _trial_dataset_id(self, trial: TrialInfo) -> str:
+        # missing table uses compact ids like S13012 (no underscore).
+        return trial_dataset_id(trial.cam_session_suffix) or trial_dataset_id(trial.mocap_folder_name)
+
+    def _reconstructed_root_for_skip(self) -> Path | None:
+        page = getattr(self, "pressure_alignment_page", None)
+        if page is not None:
+            root = getattr(page, "_reconstructed_root", None)
+            if root is not None and Path(root).exists():
+                return Path(root)
+        if DEFAULT_RECONSTRUCTED_TACTILE_ROOT.exists():
+            return Path(DEFAULT_RECONSTRUCTED_TACTILE_ROOT)
+        return None
+
+    def _refresh_pressure_skip_index(self) -> None:
+        skip_ids, labels = build_pressure_skip_index(
+            quality_table=DEFAULT_MISSING_PRESSURE_TABLE,
+            reconstruction_root=self._reconstructed_root_for_skip(),
+            skip_classes=("C", "D"),
+        )
+        self._pressure_skip_ids = set(skip_ids)
+        self._pressure_quality_labels = dict(labels)
+
+    def _pressure_quality_label(self, trial: TrialInfo) -> str | None:
+        dataset_id = self._trial_dataset_id(trial)
+        if not dataset_id:
+            return None
+        quality = self._pressure_quality_labels.get(dataset_id)
+        if quality in {"C", "D"}:
+            return quality
+        if dataset_id in self._pressure_skip_ids:
+            return "C"
+        return None
+
+    def _is_pressure_skip_trial(self, trial: TrialInfo) -> bool:
+        if not getattr(self, "_pressure_skip_ids", None):
+            return False
+        dataset_id = self._trial_dataset_id(trial)
+        return bool(dataset_id) and dataset_id in self._pressure_skip_ids
+
+    def _find_navigable_trial_index(self, start_index: int, step: int) -> int | None:
+        if not self._trial_list:
+            return None
+        index = int(start_index)
+        total = len(self._trial_list)
+        while 0 <= index < total:
+            if not self._is_pressure_skip_trial(self._trial_list[index]):
+                return index
+            index += step
+        return None
+
+
+    def _wrap_pressure_page_root_import(self) -> None:
+        page = self.pressure_alignment_page
+        if page is None or getattr(page, "_skip_index_wrapped", False):
+            return
+        original = page._import_reconstructed_tactile_root
+
+        def _wrapped() -> None:
+            original()
+            self._refresh_pressure_skip_index()
             self._update_trial_display()
-            self.load_current_selection()
+
+        page._import_reconstructed_tactile_root = _wrapped  # type: ignore[method-assign]
+        page._skip_index_wrapped = True  # type: ignore[attr-defined]
+
+    def navigate_prev(self) -> None:
+        if not self._trial_list:
+            return
+        target = self._find_navigable_trial_index(self._trial_index - 1, step=-1)
+        if target is None:
+            self.log("没有更多可统计试次（已跳过质量表 C/D）。")
+            return
+        skipped = [
+            self._trial_list[i]
+            for i in range(target + 1, self._trial_index)
+            if self._is_pressure_skip_trial(self._trial_list[i])
+        ]
+        self._trial_index = target
+        self._update_trial_display()
+        if skipped:
+            names = ", ".join(t.cam_session_suffix for t in skipped)
+            self.log(f"已跳过 C/D 试次：{names}")
+        self.load_current_selection()
 
     def navigate_next(self) -> None:
-        if self._trial_index < len(self._trial_list) - 1:
-            self._trial_index += 1
-            self._update_trial_display()
-            self.load_current_selection()
+        if not self._trial_list:
+            return
+        target = self._find_navigable_trial_index(self._trial_index + 1, step=1)
+        if target is None:
+            self.log("没有更多可统计试次（已跳过质量表 C/D）。")
+            return
+        skipped = [
+            self._trial_list[i]
+            for i in range(self._trial_index + 1, target)
+            if self._is_pressure_skip_trial(self._trial_list[i])
+        ]
+        self._trial_index = target
+        self._update_trial_display()
+        if skipped:
+            names = ", ".join(t.cam_session_suffix for t in skipped)
+            self.log(f"已跳过 C/D 试次：{names}")
+        self.load_current_selection()
+
     def choose_trial(self) -> None:
         if self._use_explicit_paths:
             QtWidgets.QMessageBox.information(self, "选择批次", "当前为手动路径模式，无法从批次列表选择。")
@@ -1093,24 +1199,63 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "选择批次", "当前没有可选择的批次，请先选择相机/动捕目录并重新加载。")
             return
 
-        labels = []
-        for index, trial in enumerate(self._trial_list):
-            labels.append(f"[{index + 1}/{len(self._trial_list)}] {trial.display_name}  ({trial.mocap_folder_name})")
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("选择批次")
+        dialog.resize(720, 520)
+        layout = QtWidgets.QVBoxLayout(dialog)
+        hint = QtWidgets.QLabel("C/D 试次仍显示但不可选择（质量表或重建空侧）。")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
 
-        selected, ok = QtWidgets.QInputDialog.getItem(
-            self,
-            "选择批次",
-            "请选择要加载的批次：",
-            labels,
-            self._trial_index,
-            False,
+        list_widget = QtWidgets.QListWidget()
+        list_widget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        enabled_rows: list[int] = []
+        for index, trial in enumerate(self._trial_list):
+            quality = self._pressure_quality_label(trial)
+            if quality in {"C", "D"}:
+                label = (
+                    f"[{index + 1}/{len(self._trial_list)}] {trial.display_name}  "
+                    f"({trial.mocap_folder_name})  [{quality}] 不可选"
+                )
+            else:
+                label = f"[{index + 1}/{len(self._trial_list)}] {trial.display_name}  ({trial.mocap_folder_name})"
+            item = QtWidgets.QListWidgetItem(label)
+            item.setData(QtCore.Qt.UserRole, index)
+            if quality in {"C", "D"}:
+                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEnabled & ~QtCore.Qt.ItemIsSelectable)
+                item.setForeground(QtGui.QBrush(QtGui.QColor("#9A8B7C")))
+            else:
+                enabled_rows.append(index)
+            list_widget.addItem(item)
+            if index == self._trial_index and quality not in {"C", "D"}:
+                list_widget.setCurrentItem(item)
+        if list_widget.currentItem() is None and enabled_rows:
+            # Select first enabled item for keyboard usability.
+            first_enabled = enabled_rows[0]
+            list_widget.setCurrentRow(first_enabled)
+        layout.addWidget(list_widget, 1)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
-        if not ok or not selected:
+        layout.addWidget(buttons)
+
+        def _accept_if_enabled() -> None:
+            item = list_widget.currentItem()
+            if item is None or not (item.flags() & QtCore.Qt.ItemIsEnabled):
+                return
+            dialog.accept()
+
+        buttons.accepted.connect(_accept_if_enabled)
+        buttons.rejected.connect(dialog.reject)
+        list_widget.itemDoubleClicked.connect(lambda _item: _accept_if_enabled())
+
+        if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
-        try:
-            selected_index = labels.index(selected)
-        except ValueError:
+        item = list_widget.currentItem()
+        if item is None or not (item.flags() & QtCore.Qt.ItemIsEnabled):
             return
+        selected_index = int(item.data(QtCore.Qt.UserRole))
         if selected_index == self._trial_index:
             return
         self._trial_index = selected_index
@@ -1238,6 +1383,30 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self._trial_list:
             QtWidgets.QMessageBox.warning(self, "无可用试次", "未找到任何试次数据，请先在右上角选择动捕目录和相机目录。")
             return
+
+        # Auto-skip quality C/D trials when loading by list position / picker.
+        if self._is_pressure_skip_trial(self._trial_list[self._trial_index]):
+            forward = self._find_navigable_trial_index(self._trial_index + 1, step=1)
+            backward = self._find_navigable_trial_index(self._trial_index - 1, step=-1)
+            target = forward if forward is not None else backward
+            skipped = self._trial_list[self._trial_index]
+            if target is None:
+                self._set_state_badge("无可统计试次", "warning")
+                self.log(
+                    f"当前及邻近试次均为质量表 C/D，已跳过：{skipped.cam_session_suffix}"
+                )
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "无可统计试次",
+                    "质量表中的 C/D 试次会被跳过，当前没有可加载的统计试次。",
+                )
+                return
+            self.log(
+                f"跳过质量表 C/D 试次 {skipped.cam_session_suffix}，改加载 "
+                f"{self._trial_list[target].cam_session_suffix}"
+            )
+            self._trial_index = target
+            self._update_trial_display()
 
         trial = self._trial_list[self._trial_index]
         self.stop_playback()
